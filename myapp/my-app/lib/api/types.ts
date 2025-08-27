@@ -6,6 +6,7 @@ export interface Product {
   service_category: string
   size_category: string
   base_price: number
+  service_rate_per_unit: number; // Added this field
   is_active: boolean
   last_price_update: string
 }

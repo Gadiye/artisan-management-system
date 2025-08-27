@@ -150,7 +150,7 @@ export interface CreateDeliveryPayload {
 }
 
 // Generic API functions
-async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+export async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   // Ensure API_BASE_URL does not end with a slash
   const baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
   // Ensure endpoint starts with a slash

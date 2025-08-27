@@ -13,7 +13,7 @@ class Artisan(models.Model):
         return self.name
     
     @property
-    def average_rating(self):
+    def average_rating_computed(self):
         """Calculate average rating from job ratings"""
         from jobs.models import JobItem
         ratings = JobItem.objects.filter(
@@ -26,13 +26,13 @@ class Artisan(models.Model):
         return 0.0
     
     @property
-    def total_jobs(self):
+    def total_jobs_computed(self):
         """Get total number of jobs"""
         from jobs.models import JobItem
         return JobItem.objects.filter(artisan=self).count()
     
     @property
-    def total_earnings(self):
+    def total_earnings_computed(self):
         """Get total earnings from payslips"""
         from payslips.models import Payslip
         return float(Payslip.objects.filter(artisan=self).aggregate(
@@ -40,7 +40,7 @@ class Artisan(models.Model):
         )['total_payment__sum'] or 0)
     
     @property
-    def pending_payment(self):
+    def pending_payment_computed(self):
         """Calculate pending payments (completed jobs without payslips)"""
         from jobs.models import JobItem
         from django.db.models import Sum
@@ -55,7 +55,7 @@ class Artisan(models.Model):
         return float(pending_sum or 0)
     
     @property
-    def specialties(self):
+    def specialties_computed(self):
         """Get specialties from job categories"""
         from jobs.models import JobItem
         return list(JobItem.objects.filter(
@@ -63,7 +63,7 @@ class Artisan(models.Model):
         ).values_list('job__service_category', flat=True).distinct())
     
     @property
-    def last_job_date(self):
+    def last_job_date_computed(self):
         """Get date of last job"""
         from jobs.models import JobItem
         last_job = JobItem.objects.filter(

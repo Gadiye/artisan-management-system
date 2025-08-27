@@ -1,5 +1,7 @@
 from rest_framework import generics, status, filters, viewsets
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, AllowAny
 from rest_framework.pagination import PageNumberPagination
@@ -7,12 +9,15 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.db import IntegrityError
+from django.db.models import Sum, Avg, Count, OuterRef, Subquery, F, DecimalField
+from django.db.models.functions import Coalesce
+from decimal import Decimal
 
 from jobs.models import JobItem
 from payslips.models import Payslip
 from .models import Artisan
 from .serializers import (
-    ArtisanSerializer, 
+    ArtisanListSerializer, 
     ArtisanDetailSerializer,
     JobItemSerializer,
     PayslipSerializer
@@ -26,98 +31,7 @@ class ArtisanPagination(PageNumberPagination):
     max_page_size = 100
 
 
-class ArtisanListCreateView(generics.ListCreateAPIView):
-    """
-    GET /api/artisans/
-    POST /api/artisans/
-    
-    List all artisans with filtering, searching, and sorting.
-    Create new artisan.
-    """
-    serializer_class = ArtisanSerializer
-    pagination_class = ArtisanPagination
-    permission_classes = [IsAuthenticatedOrReadOnly]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['is_active']
-    search_fields = ['name']
-    ordering_fields = ['name', 'created_date']
-    ordering = ['-created_date']  # Default ordering
 
-    def get_queryset(self):
-        """
-        Return queryset with optional filtering.
-        By default, return only active artisans.
-        """
-        queryset = Artisan.objects.all()
-        
-        # Filter by active status (default to active only)
-        is_active = self.request.query_params.get('is_active', 'true')
-        if is_active.lower() in ['true', '1']:
-            queryset = queryset.filter(is_active=True)
-        elif is_active.lower() in ['false', '0']:
-            queryset = queryset.filter(is_active=False)
-        # If 'all' or any other value, return all artisans
-        
-        return queryset
-
-    def perform_create(self, serializer):
-        """Handle artisan creation"""
-        serializer.save()
-
-
-class ArtisanDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """
-    GET /api/artisans/{id}/
-    PUT /api/artisans/{id}/
-    PATCH /api/artisans/{id}/
-    DELETE /api/artisans/{id}/
-    
-    Retrieve, update, or soft delete a specific artisan.
-    """
-    queryset = Artisan.objects.all()
-    permission_classes = [IsAuthenticatedOrReadOnly]
-    
-    def get_serializer_class(self):
-        """Use detailed serializer for GET requests"""
-        if self.request.method == 'GET':
-            return ArtisanDetailSerializer
-        return ArtisanSerializer
-    
-    def get_object(self):
-        """Get artisan object with optional related data"""
-        obj = get_object_or_404(Artisan, pk=self.kwargs['pk'])
-        
-        # Check if we should include related data
-        include_jobs = self.request.query_params.get('include_jobs', 'false').lower() == 'true'
-        include_payslips = self.request.query_params.get('include_payslips', 'false').lower() == 'true'
-        
-        if include_jobs:
-            obj.prefetch_jobs = True
-        if include_payslips:
-            obj.prefetch_payslips = True
-            
-        return obj
-    
-    def destroy(self, request, *args, **kwargs):
-        """
-        Soft delete artisan by setting is_active=False.
-        Check for dependencies before deletion.
-        """
-        artisan = self.get_object()
-        
-        # Check if artisan has active job items (due to PROTECT constraint)
-        active_jobs = JobItem.objects.filter(artisan=artisan, job__status='IN_PROGRESS').exists()
-        if active_jobs:
-            return Response(
-                {"error": "Cannot delete artisan with active job items. Complete or reassign jobs first."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Soft delete
-        artisan.is_active = False
-        artisan.save()
-        
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ArtisanJobsView(generics.ListAPIView):
@@ -308,12 +222,51 @@ def artisan_stats(request, pk):
         )
 
 
+@method_decorator(name='list', decorator=cache_page(60 * 15))
 class ArtisanViewSet(viewsets.ModelViewSet):
-    queryset = Artisan.objects.all().order_by('name')  # Added ordering
-    serializer_class = ArtisanSerializer
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_active']
     search_fields = ['name']
     ordering_fields = ['name', 'created_date']
-    ordering = ['name']  # Default ordering
+    ordering = ['name']
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return ArtisanListSerializer
+        return ArtisanDetailSerializer
+
+    def get_queryset(self):
+        queryset = Artisan.objects.all()
+
+        if self.action != 'list':
+            # Apply expensive annotations only for detail view
+            last_job_date_subquery = JobItem.objects.filter(
+                artisan=OuterRef('pk')
+            ).order_by('-job__created_date').values('job__created_date')[:1]
+
+            pending_payment_subquery = JobItem.objects.filter(
+                artisan=OuterRef('pk'),
+                payslip_generated=False,
+                job__status='COMPLETED'
+            ).values('artisan').annotate(
+                total_pending=Sum('final_payment')
+            ).values('total_pending')
+
+            queryset = queryset.annotate(
+                total_jobs=Coalesce(Count('jobitem', distinct=True), 0),
+                average_rating=Coalesce(Avg('jobitem__rating'), Decimal('0.0'), output_field=DecimalField()),
+                total_earnings=Coalesce(Sum('payslip__total_payment'), Decimal('0.0'), output_field=DecimalField()),
+                last_job_date=Subquery(last_job_date_subquery),
+                pending_payment=Coalesce(Subquery(pending_payment_subquery, output_field=DecimalField()), Decimal('0.0'))
+            )
+        
+        # Handle filtering for is_active for all actions
+        is_active_param = self.request.query_params.get('is_active')
+        if is_active_param is not None:
+            if is_active_param.lower() in ['true', '1']:
+                queryset = queryset.filter(is_active=True)
+            elif is_active_param.lower() in ['false', '0']:
+                queryset = queryset.filter(is_active=False)
+
+        return queryset

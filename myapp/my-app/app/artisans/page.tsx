@@ -36,7 +36,7 @@ export default function ArtisansPage() {
 
   // Calculate statistics based on fetched artisans
   // Ensure 'artisans' is treated as an array for calculations
-  const safeArtisans = artisans || [];
+  const safeArtisans = artisans?.results || (Array.isArray(artisans) ? artisans : []);
 
   const activeArtisans = safeArtisans.filter((a) => a.is_active).length;
   const totalEarnings = safeArtisans.reduce((sum, a) => sum + (a.total_earnings || 0), 0);
@@ -110,7 +110,7 @@ export default function ArtisansPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Artisan Management</h1>
-            <p className="text-muted-foreground mt-2">Manage your skilled craftspeople and their performance</p>
+            <p className="text-muted-foreground mt-2">A list of all artisans in your system.</p>
           </div>
           <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
             <DialogTrigger asChild>
@@ -158,48 +158,6 @@ export default function ArtisansPage() {
           </Dialog>
         </div>
       </div>
-      {/* Artisan Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Active Artisans</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activeArtisans}</div>
-            <p className="text-xs text-muted-foreground">Currently working</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${totalEarnings.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">All time payments</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">${totalPendingPayments.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">Awaiting payment</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Average Rating</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{averageRating.toFixed(1)}</div>
-            <p className="text-xs text-muted-foreground">Quality score</p>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Artisans Table */}
       <Card>
@@ -213,10 +171,6 @@ export default function ArtisansPage() {
               <TableRow>
                 <TableHead>Artisan</TableHead>
                 <TableHead>Contact</TableHead>
-                <TableHead>Specialties</TableHead>
-                <TableHead>Performance</TableHead>
-                <TableHead>Earnings</TableHead>
-                <TableHead>Pending Payment</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -229,7 +183,6 @@ export default function ArtisansPage() {
                       <div className="font-medium">{artisan.name}</div>
                       <div className="text-sm text-muted-foreground flex items-center mt-1">
                         <Calendar className="h-3 w-3 mr-1" />
-                        {/* Ensure created_date is a valid date string for formatting */}
                         Joined {new Date(artisan.created_date).toLocaleDateString()}
                       </div>
                     </div>
@@ -238,43 +191,6 @@ export default function ArtisansPage() {
                     <div className="flex items-center text-sm">
                       <Phone className="h-3 w-3 mr-1" />
                       {artisan.phone || 'N/A'}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {/* Assuming specialties is an array of strings on the Artisan object */}
-                      {(artisan.specialties || []).map((specialty: string) => (
-                        <Badge key={specialty} variant="outline" className="text-xs">
-                          {specialty}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      <div className="flex items-center">
-                        <Briefcase className="h-3 w-3 mr-1" />
-                        {artisan.total_jobs || 0} jobs
-                      </div>
-                      <div className="text-muted-foreground flex items-center">
-                        <Star className="h-3 w-3 mr-1 text-yellow-500 fill-yellow-500" />
-                        {(artisan.average_rating || 0).toFixed(1)}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      <div className="font-medium">${(artisan.total_earnings || 0).toFixed(2)}</div>
-                      <div className="text-muted-foreground">Total earned</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">
-                      {(artisan.pending_payment || 0) > 0 ? (
-                        <span className="text-orange-600">${(artisan.pending_payment || 0).toFixed(2)}</span>
-                      ) : (
-                        <span className="text-muted-foreground">$0.00</span>
-                      )}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -294,14 +210,6 @@ export default function ArtisansPage() {
                           <Edit className="h-4 w-4" />
                         </Button>
                       </Link>
-                      {(artisan.pending_payment || 0) > 0 && (
-                        <Link href={`/payslips/generate?artisan_id=${artisan.id}`}>
-                          <Button variant="outline" size="sm">
-                            <DollarSign className="h-4 w-4 mr-1" />
-                            Pay
-                          </Button>
-                        </Link>
-                      )}
                     </div>
                   </TableCell>
                 </TableRow>

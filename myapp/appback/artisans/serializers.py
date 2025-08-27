@@ -8,89 +8,13 @@ from jobs.models import JobItem, Job
 from payslips.models import Payslip
 
 
-class ArtisanSerializer(serializers.ModelSerializer):
+class ArtisanListSerializer(serializers.ModelSerializer):
     """
-    Basic serializer for Artisan model.
-    Used for list views and basic CRUD operations.
+    A lightweight serializer for the Artisan list view, providing only essential information.
     """
-    
-    # Phone number validation
-    phone_validator = RegexValidator(
-        regex=r'^\+?1?\d{9,15}$',
-        message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed."
-    )
-    
-    phone = serializers.CharField(
-        validators=[phone_validator],
-        required=False,
-        allow_blank=True,
-        help_text="Phone number in international format"
-    )
-    
-    # Frontend-expected fields with proper naming
-    totalJobs = serializers.SerializerMethodField()
-    totalEarnings = serializers.SerializerMethodField()
-    specialties = serializers.SerializerMethodField()
-    lastJobDate = serializers.SerializerMethodField()
-    pendingPayment = serializers.SerializerMethodField()
-    averageRating = serializers.SerializerMethodField()
-    
-    # Add createdDate as alias for created_date
-    createdDate = serializers.DateTimeField(source='created_date', read_only=True)
-    
     class Meta:
         model = Artisan
-        fields = [
-            'id', 'name', 'phone', 'is_active', 'created_date', 'createdDate',
-            'totalJobs', 'totalEarnings', 'specialties', 'lastJobDate', 
-            'pendingPayment', 'averageRating'
-        ]
-        read_only_fields = [
-            'id', 'created_date', 'createdDate', 'totalJobs', 'totalEarnings', 
-            'specialties', 'lastJobDate', 'pendingPayment', 'averageRating'
-        ]
-    
-    def validate_name(self, value):
-        """Validate that name is not empty and is reasonable length"""
-        if not value or not value.strip():
-            raise serializers.ValidationError("Name cannot be empty.")
-        
-        if len(value.strip()) < 2:
-            raise serializers.ValidationError("Name must be at least 2 characters long.")
-        
-        if len(value) > 100:
-            raise serializers.ValidationError("Name cannot exceed 100 characters.")
-        
-        return value.strip()
-    
-    def validate_phone(self, value):
-        """Additional phone number validation"""
-        if value:
-            # Remove spaces and dashes for validation
-            cleaned_phone = re.sub(r'[\s-]', '', value)
-            if not re.match(r'^\+?1?\d{9,15}$', cleaned_phone):
-                raise serializers.ValidationError(
-                    "Invalid phone number format. Use international format like +1234567890"
-                )
-        return value
-    
-    def get_totalJobs(self, obj):
-        return obj.total_jobs
-    
-    def get_totalEarnings(self, obj):
-        return obj.total_earnings
-    
-    def get_specialties(self, obj):
-        return obj.specialties
-    
-    def get_lastJobDate(self, obj):
-        return obj.last_job_date
-    
-    def get_pendingPayment(self, obj):
-        return obj.pending_payment
-    
-    def get_averageRating(self, obj):
-        return round(obj.average_rating, 1)
+        fields = ['id', 'name', 'phone', 'is_active', 'created_date']
 
 
 class JobSummarySerializer(serializers.ModelSerializer):
@@ -148,22 +72,22 @@ class ArtisanDetailSerializer(serializers.ModelSerializer):
         ]
     
     def get_totalJobs(self, obj):
-        return obj.total_jobs
+        return obj.total_jobs_computed
     
     def get_totalEarnings(self, obj):
-        return obj.total_earnings
+        return obj.total_earnings_computed
     
     def get_specialties(self, obj):
-        return obj.specialties
+        return obj.specialties_computed
     
     def get_lastJobDate(self, obj):
-        return obj.last_job_date
+        return obj.last_job_date_computed
     
     def get_pendingPayment(self, obj):
-        return obj.pending_payment
+        return obj.pending_payment_computed
     
     def get_averageRating(self, obj):
-        return round(obj.average_rating, 1)
+        return round(obj.average_rating_computed, 1)
     
     def get_jobs(self, obj):
         """

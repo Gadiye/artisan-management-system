@@ -7,8 +7,8 @@ import { Navigation } from "@/components/navigation"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Artisan Management System",
-  description: "Manage woodcraft production workflow",
+  title: "Kichaka Poa Management System",
+  description: "Manage production workflow",
 }
 
 export default function RootLayout({

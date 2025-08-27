@@ -1,48 +1,73 @@
 // hooks/useResource.ts
-"use client"
-
 import { useApi } from './useApi'
-import { api } from '../lib/api'
+import { PaginatedResponse, Job, Artisan, Product, Customer, Order, FinishedStock, Payslip, ServiceRate, InventoryItem } from '@/types'
 
+/**
+ * Creates a reusable hook for fetching a list of resources.
+ * @param endpoint The API endpoint to fetch data from (e.g., '/artisans/').
+ */
+function createResourceHook<T>(endpoint: string) {
+  return () => {
+    // Use the SWR-powered useApi hook
+    const { data, ...rest } = useApi<PaginatedResponse<T>>(endpoint);
 
-import { PaginatedResponse, Job, JobListEntry } from '@/types';
+    // Normalize paginated DRF response to a simple array
+    const normalizedData = (data && typeof data === 'object' && 'results' in data) 
+      ? (data as any).results 
+      : data;
 
-function createResourceHook<T>(apiCall: () => Promise<PaginatedResponse<T>>) {
-  return (options?: { immediate?: boolean }) => {
-    const { data, ...rest } = useApi(apiCall, [], options);
-    const normalizedData = (data && typeof data === 'object' && 'results' in data) ? (data as any).results : data;
     return { data: normalizedData as T[], ...rest };
   }
 }
 
-// List hooks
-export const useArtisans = createResourceHook<Artisan>(() => api.artisans.list())
-export const useProducts = createResourceHook(() => api.products.list())
-export const useCustomers = createResourceHook(() => api.customers.list())
-export const useJobs = createResourceHook<Job[]>(() => api.jobs.list())
-export const useOrders = createResourceHook(() => api.orders.list())
-export const useFinishedStock = createResourceHook(() => api.finishedStock.list())
-export const usePayslips = createResourceHook(() => api.payslips.list())
-export const useServiceRates = createResourceHook(() => api.serviceRates.list())
-export const useInventory = createResourceHook(() => api.inventory.list())
+// --- List Hooks ---
+// These hooks now use SWR for caching, providing instant loads for previously fetched data.
+export const useArtisans = createResourceHook<Artisan>("/artisans/");
+export const useProducts = createResourceHook<Product>("/products/");
+export const useCustomers = createResourceHook<Customer>("/customers/");
+export const useJobs = createResourceHook<Job[]>("/jobs/");
+export const useOrders = createResourceHook<Order>("/orders/");
+export const useFinishedStock = createResourceHook<FinishedStock>("/inventory/finished-stock/");
+export const usePayslips = createResourceHook<Payslip>("/payslips/");
+export const useServiceRates = createResourceHook<ServiceRate>("/service-rates/");
+export const useInventory = createResourceHook<InventoryItem>("/inventory/items/");
 
-// Individual resource hooks
-export function useArtisan(id: number, options?: { immediate?: boolean }) {
-  return useApi(() => api.artisans.get(id), [id], options)
+
+// --- Individual Resource Hooks ---
+// These hooks fetch a single item by its ID.
+
+/**
+ * Fetches a single artisan by ID.
+ * @param id The ID of the artisan. If null, the request is not made.
+ */
+export function useArtisan(id: number | null) {
+  return useApi<Artisan>(id ? `/artisans/${id}/` : null);
 }
 
-export function useCustomer(id: number, options?: { immediate?: boolean }) {
-  return useApi(() => api.customers.get(id), [id], options)
+/**
+ * Fetches a single customer by ID.
+ */
+export function useCustomer(id: number | null) {
+  return useApi<Customer>(id ? `/customers/${id}/` : null);
 }
 
-export function useJob(id: number, options?: { immediate?: boolean }) {
-  return useApi(() => api.jobs.get(id), [id], options)
+/**
+ * Fetches a single job by ID.
+ */
+export function useJob(id: number | null) {
+  return useApi<Job>(id ? `/jobs/${id}/` : null);
 }
 
-export function useProduct(id: number, options?: { immediate?: boolean }) {
-  return useApi(() => api.products.get(id), [id], options)
+/**
+ * Fetches a single product by ID.
+ */
+export function useProduct(id: number | null) {
+  return useApi<Product>(id ? `/products/${id}/` : null);
 }
 
-export function useOrder(id: number, options?: { immediate?: boolean }) {
-  return useApi(() => api.orders.get(id), [id], options)
+/**
+ * Fetches a single order by ID.
+ */
+export function useOrder(id: number | null) {
+  return useApi<Order>(id ? `/orders/${id}/` : null);
 }
