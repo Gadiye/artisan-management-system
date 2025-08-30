@@ -26,9 +26,9 @@ from .serializers import (
 
 class ArtisanPagination(PageNumberPagination):
     """Custom pagination for artisan lists"""
-    page_size = 20
+    page_size = 300
     page_size_query_param = 'page_size'
-    max_page_size = 100
+    max_page_size = 500
 
 
 

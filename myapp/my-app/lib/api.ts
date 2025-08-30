@@ -233,7 +233,13 @@ function getCsrfToken(): string | null {
 export const api = {
   // Products
   products: {
-    list: (params?: URLSearchParams) => apiRequest<{ results: Product[] }>(`/products/?${params?.toString() || ''}`).then(res => res.results),
+    list: (params?: URLSearchParams) => {
+      const newParams = params || new URLSearchParams();
+      if (!newParams.has('limit')) {
+        newParams.set('limit', '100'); // Request up to 100 products
+      }
+      return apiRequest<{ results: Product[] }>(`/products/?${newParams.toString()}`).then(res => res.results);
+    },
     get: (id: number) => apiRequest<Product>(`/products/${id}/`),
     create: (data: Partial<Product>) =>
       apiRequest<Product>("/products/", {

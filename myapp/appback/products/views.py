@@ -26,9 +26,9 @@ from .filters import ProductFilter, PriceHistoryFilter # Import both filters
 
 
 class ProductPagination(PageNumberPagination):
-    page_size = 20
+    page_size = 300
     page_size_query_param = 'limit'
-    max_page_size = 100
+    max_page_size = 500
 
 
 class PriceHistoryPagination(PageNumberPagination):

@@ -1,7 +1,7 @@
 # jobs/views.py
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-from django.db.models import Q, Sum, F, Count
+from django.db.models import Q, Sum, F, Count, Subquery, OuterRef
 from rest_framework.permissions import AllowAny
 
 from rest_framework import viewsets, status, filters
@@ -25,9 +25,9 @@ from .filters import JobFilter, JobItemFilter
 
 
 class JobPagination(PageNumberPagination):
-    page_size = 20
+    page_size = 300
     page_size_query_param = 'page_size'
-    max_page_size = 100
+    max_page_size = 500
 
 
 class JobViewSet(viewsets.ModelViewSet):
@@ -36,7 +36,6 @@ class JobViewSet(viewsets.ModelViewSet):
     Supports CRUD operations for Jobs.
     Nested routes for JobItems management.
     """
-    queryset = Job.objects.all().order_by('-created_date')
     pagination_class = JobPagination
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -44,6 +43,21 @@ class JobViewSet(viewsets.ModelViewSet):
     search_fields = ['job_id', 'created_by', 'notes']
     ordering_fields = ['created_date', 'status', 'service_category', 'total_cost', 'total_final_payment']
     lookup_field = 'job_id'
+
+    def get_queryset(self):
+        queryset = Job.objects.all().order_by('-created_date')
+        if self.action == 'list':
+            service_rate_subquery = ServiceRate.objects.filter(
+                product=OuterRef('items__product'),
+                service_category=OuterRef('service_category')
+            ).values('rate_per_unit')[:1]
+            queryset = queryset.annotate(
+                total_cost=Sum(
+                    F('items__quantity_ordered') * Subquery(service_rate_subquery)
+                ),
+                total_final_payment=Sum('items__final_payment')
+            )
+        return queryset
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -533,8 +547,9 @@ class JobDeliveryViewSet(viewsets.ModelViewSet):
 
 
 class ServiceRateViewSet(viewsets.ModelViewSet):
-    queryset = ServiceRate.objects.all()
+    queryset = ServiceRate.objects.select_related('product').all()
     serializer_class = ServiceRateSerializer
+    pagination_class = JobPagination
     permission_classes = [AllowAny] # Adjust permissions as needed
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['service_category', 'product']

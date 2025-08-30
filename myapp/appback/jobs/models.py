@@ -19,29 +19,7 @@ class Job(models.Model):
     service_category = models.CharField(max_length=50, choices=Product.SERVICE_CATEGORIES)
     notes = models.TextField(blank=True, null=True)
     
-    @property
-    def total_cost(self):
-        from django.core.exceptions import ObjectDoesNotExist
-        from decimal import Decimal
-
-        total = Decimal('0.00')
-        print(f"Calculating total_cost for Job ID: {self.job_id}, Service Category: {self.service_category}")
-        for item in self.items.all():
-            print(f"  Processing JobItem ID: {item.id}, Product ID: {item.product.id}, Ordered Quantity: {item.quantity_ordered}")
-            try:
-                service_rate = ServiceRate.objects.get(product=item.product, service_category=self.service_category)
-                item_cost = service_rate.rate_per_unit * item.quantity_ordered
-                total += item_cost
-                print(f"    Found ServiceRate: {service_rate.rate_per_unit}/unit. Item Cost: {item_cost}")
-            except ObjectDoesNotExist:
-                print(f"    ServiceRate not found for Product ID {item.product.id} and Service Category '{self.service_category}'. Item cost set to 0.")
-                total += Decimal('0.00')
-        print(f"Final calculated total_cost for Job ID {self.job_id}: {total}")
-        return total
     
-    @property
-    def total_final_payment(self):
-        return sum(item.final_payment for item in self.items.all())
     
     def update_status(self):
         total_ordered = sum(item.quantity_ordered for item in self.items.all())
