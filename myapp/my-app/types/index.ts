@@ -182,3 +182,16 @@ export interface ServiceRate {
   service_category: string;
   rate_per_unit: number;
 }
+
+export interface HierarchicalRate {
+  product_category: string;
+  animal: string;
+  rates: {
+    size: string;
+    Carving?: number;
+    Sanding?: number;
+    Painting?: number;
+    Cutting?: number;
+    Finishing?: number;
+  }[];
+}

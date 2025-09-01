@@ -9,12 +9,12 @@ standalone_router.register(r'job-items', JobItemViewSet, basename='jobitem')
 standalone_router.register(r'job-deliveries', JobDeliveryViewSet, basename='jobdelivery')
 standalone_router.register(r'service-rates', ServiceRateViewSet, basename='servicerates')
 
+# Create a router for the JobViewSet
+router = DefaultRouter()
+router.register(r'', JobViewSet, basename='job')
+
+
 urlpatterns = [
-    # Job CRUD operations (basic REST endpoints)
-    path('', JobViewSet.as_view({'get': 'list', 'post': 'create'}), name='job-list'),
-    path('dashboard/', JobViewSet.as_view({'get': 'dashboard'}), name='job-dashboard'),
-    path('<str:job_id>/', JobViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='job-detail'),
-    
     # Job Items nested routes
     path('<str:job_id>/items/', JobViewSet.as_view({'get': 'list_job_items', 'post': 'create_job_item'}), name='job-items-list'),
     path('<str:job_id>/items/<int:item_pk>/', JobViewSet.as_view({
@@ -42,4 +42,5 @@ urlpatterns = [
     
     # Include standalone viewsets
     path('', include(standalone_router.urls)),
+    path('', include(router.urls)),
 ]

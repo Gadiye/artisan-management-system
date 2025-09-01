@@ -250,3 +250,19 @@ class ServiceRateSerializer(serializers.ModelSerializer):
         model = ServiceRate
         fields = ['id', 'product', 'service_category', 'rate_per_unit']
     rate_per_unit = serializers.FloatField()
+
+
+class RateDetailSerializer(serializers.Serializer):
+    """Describes the rates for a specific size."""
+    size = serializers.CharField()
+    Carving = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    Sanding = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    Painting = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    Cutting = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    Finishing = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+
+class HierarchicalServiceRateSerializer(serializers.Serializer):
+    """Describes a product with its animal type and a list of rates for different sizes."""
+    product_category = serializers.CharField()
+    animal = serializers.CharField()
+    rates = RateDetailSerializer(many=True)

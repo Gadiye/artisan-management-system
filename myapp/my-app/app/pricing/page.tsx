@@ -5,75 +5,36 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { useServiceRates, useProducts } from '@/hooks/useResource'
-import { api } from "@/lib/api"
-import React, { useState, useMemo } from "react" // Added useState and useMemo
+import { useHierarchicalServiceRates, useProductsWithoutServiceRates } from '@/hooks/useResource'
+import React, { useState, useMemo } from "react"
 
 export default function PricingPage() {
-  const { data: serviceRates, loading, error } = useServiceRates();
+  const { data: hierarchicalRates, loading, error } = useHierarchicalServiceRates();
+  const { data: productsWithoutRates, loading: loadingProductsWithoutRates, error: errorProductsWithoutRates } = useProductsWithoutServiceRates();
   const [productFilter, setProductFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all"); // Changed initial state to "all"
+  const [missingRatesFilter, setMissingRatesFilter] = useState("");
 
-  const uniqueCategories = useMemo(() => {
-    if (!serviceRates) return [];
-    const categories = new Set(serviceRates.map(rate => rate.service_category));
-    return Array.from(categories).sort();
-  }, [serviceRates]);
+  const filteredRates = useMemo(() => {
+    if (!hierarchicalRates) return [];
+    if (!productFilter) return hierarchicalRates;
+    return hierarchicalRates.filter(rate =>
+      rate.product_category.toLowerCase().includes(productFilter.toLowerCase()) ||
+      rate.animal.toLowerCase().includes(productFilter.toLowerCase())
+    );
+  }, [hierarchicalRates, productFilter]);
 
-  const filteredServiceRates = useMemo(() => {
-    if (!serviceRates) return [];
-    return serviceRates.filter(rate => {
-      const matchesProduct = productFilter === "" ||
-        rate.product?.product_type?.toLowerCase().includes(productFilter.toLowerCase()) ||
-        rate.product?.animal_type?.toLowerCase().includes(productFilter.toLowerCase());
-      const matchesCategory = categoryFilter === "all" || // Changed logic to check for "all"
-        rate.service_category === categoryFilter;
-      return matchesProduct && matchesCategory;
-    });
-  }, [serviceRates, productFilter, categoryFilter]);
+  const filteredMissingRates = useMemo(() => {
+    if (!productsWithoutRates) return [];
+    if (!missingRatesFilter) return productsWithoutRates;
+    return productsWithoutRates.filter(product =>
+      product.product_type.toLowerCase().includes(missingRatesFilter.toLowerCase()) ||
+      product.animal_type.toLowerCase().includes(missingRatesFilter.toLowerCase()) ||
+      product.size_category.toLowerCase().includes(missingRatesFilter.toLowerCase())
+    );
+  }, [productsWithoutRates, missingRatesFilter]);
 
-  const { data: products, loading: productsLoading, error: productsError } = useProducts(); // Added useProducts
-
-  const [newRateData, setNewRateData] = useState({
-    productId: null,
-    serviceCategory: "",
-    ratePerUnit: 0,
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formError, setFormError] = useState(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false); // To control dialog open/close
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setFormError(null);
-    setIsSubmitting(true);
-
-    try {
-      await api.serviceRates.create({
-        product: newRateData.productId,
-        service_category: newRateData.serviceCategory,
-        rate_per_unit: newRateData.ratePerUnit,
-      });
-      setNewRateData({ productId: null, serviceCategory: "", ratePerUnit: 0 }); // Clear form
-      refetch(); // Refresh data in the table
-      setIsDialogOpen(false); // Close dialog
-    } catch (err) {
-      setFormError(err.message || "Failed to add service rate.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const serviceCategories = ["Carving", "Sanding", "Painting", "Cutting", "Finishing"];
 
   if (loading) {
     return (
@@ -113,93 +74,12 @@ export default function PricingPage() {
 
       <div className="flex space-x-4 mb-6">
         <Input
-          placeholder="Filter by Product..."
+          placeholder="Filter by Product or Animal..."
           value={productFilter}
           onChange={(e) => setProductFilter(e.target.value)}
           className="max-w-sm"
         />
-        <Select onValueChange={setCategoryFilter} value={categoryFilter}>
-          <SelectTrigger className="max-w-sm">
-            <SelectValue placeholder="Filter by Category..." />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {uniqueCategories.map(category => (
-              <SelectItem key={category} value={category}>{category}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>Add New Rate</Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Add New Service Rate</DialogTitle>
-              <DialogDescription>
-                Fill in the details for the new service rate.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="product" className="text-right">
-                  Product
-                </Label>
-                <Select onValueChange={(value) => setNewRateData({ ...newRateData, productId: parseInt(value) })} value={newRateData.productId?.toString() || ""}>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select a product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {productsLoading ? (
-                      <SelectItem value="" disabled>Loading products...</SelectItem>
-                    ) : productsError ? (
-                      <SelectItem value="" disabled>Error loading products</SelectItem>
-                    ) : products && products.length > 0 ? (
-                      products.map((product) => (
-                        <SelectItem key={product.id} value={product.id.toString()}>
-                          {product.product_type} - {product.animal_type}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="" disabled>No products found</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="serviceCategory" className="text-right">
-                  Service Category
-                </Label>
-                <Select onValueChange={(value) => setNewRateData({ ...newRateData, serviceCategory: value })} value={newRateData.serviceCategory}>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {uniqueCategories.map(category => (
-                      <SelectItem key={category} value={category}>{category}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="ratePerUnit" className="text-right">
-                  Rate Per Unit
-                </Label>
-                <Input
-                  id="ratePerUnit"
-                  type="number"
-                  value={newRateData.ratePerUnit}
-                  onChange={(e) => setNewRateData({ ...newRateData, ratePerUnit: parseFloat(e.target.value) })}
-                  className="col-span-3"
-                />
-              </div>
-              {formError && <p className="text-red-500 text-sm col-span-4">{formError}</p>}
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Adding..." : "Add Rate"}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        {/* The "Add New Rate" dialog is removed for now as it needs to be adapted to the new data structure. */}
       </div>
 
       <Card>
@@ -208,29 +88,116 @@ export default function PricingPage() {
           <CardDescription>Rates paid to artisans for each unit of work completed</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
+          <Table className="border">
             <TableHeader>
               <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead>Service Category</TableHead>
-                <TableHead>Rate Per Unit</TableHead>
+                <TableHead className="border">Product Category</TableHead>
+                <TableHead className="border">Animal</TableHead>
+                <TableHead className="border">Size</TableHead>
+                {serviceCategories.map(category => (
+                  <TableHead key={category} className="border">{category} (Ksh)</TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredServiceRates && filteredServiceRates.length > 0 ? ( // Changed serviceRates to filteredServiceRates
-                filteredServiceRates.map((rate) => ( // Changed serviceRates to filteredServiceRates
-                  <TableRow key={rate.id}>
-                    <TableCell className="font-medium">
-                      {rate.product?.product_type} - {rate.product?.animal_type}
-                    </TableCell>
-                    <TableCell>{rate.service_category}</TableCell>
-                    <TableCell>Ksh{(rate.rate_per_unit ?? 0).toFixed(2)}</TableCell>
-                  </TableRow>
+              {filteredRates && filteredRates.length > 0 ? (
+                filteredRates.map((group, groupIndex) => (
+                  <React.Fragment key={groupIndex}>
+                    {group.rates.map((rate, rateIndex) => (
+                      <TableRow key={`${groupIndex}-${rateIndex}`}>
+                        {rateIndex === 0 && (
+                          <>
+                            <TableCell rowSpan={group.rates.length} className="font-medium align-top border">
+                              {group.product_category}
+                            </TableCell>
+                            <TableCell rowSpan={group.rates.length} className="font-medium align-top border">
+                              {group.animal}
+                            </TableCell>
+                          </>
+                        )}
+                        <TableCell className="border">{rate.size}</TableCell>
+                        {serviceCategories.map(category => (
+                          <TableCell key={category} className="border">
+                            {rate[category] ? parseFloat(rate[category]).toFixed(2) : "-"}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </React.Fragment>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={serviceCategories.length + 3} className="text-center py-8 text-muted-foreground">
                     No service rates found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle>Products Without Service Rates</CardTitle>
+          <CardDescription>These products do not have any service rates defined.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex space-x-4 mb-6">
+            <Input
+              placeholder="Filter by Product, Animal, or Size..."
+              value={missingRatesFilter}
+              onChange={(e) => setMissingRatesFilter(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product Type</TableHead>
+                <TableHead>Animal</TableHead>
+                <TableHead>Size</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loadingProductsWithoutRates ? (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center">
+                    <Skeleton className="h-8 w-full" />
+                  </TableCell>
+                </TableRow>
+              ) : errorProductsWithoutRates ? (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center text-red-500">
+                    Error loading products.
+                  </TableCell>
+                </TableRow>
+              ) : filteredMissingRates && filteredMissingRates.length > 0 ? (
+                Object.values(filteredMissingRates.reduce((acc, product) => {
+                  if (!acc[product.product_type]) {
+                    acc[product.product_type] = [];
+                  }
+                  acc[product.product_type].push(product);
+                  return acc;
+                }, {} as Record<string, typeof filteredMissingRates>)).map((products, groupIndex) => (
+                  <React.Fragment key={groupIndex}>
+                    {products.map((product, productIndex) => (
+                      <TableRow key={product.id}>
+                        {productIndex === 0 && (
+                          <TableCell rowSpan={products.length} className="font-medium align-top">
+                            {product.product_type}
+                          </TableCell>
+                        )}
+                        <TableCell>{product.animal_type}</TableCell>
+                        <TableCell>{product.size_category}</TableCell>
+                      </TableRow>
+                    ))}
+                  </React.Fragment>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center text-muted-foreground">
+                    All products have service rates.
                   </TableCell>
                 </TableRow>
               )}

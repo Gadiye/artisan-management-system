@@ -67,7 +67,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         GET operations are read-only for all.
         POST, PUT, PATCH, DELETE are restricted to IsAdminUser.
         """
-        if self.action in ['list', 'retrieve', 'get_product_price_history', 'product_metadata']:
+        if self.action in ['list', 'retrieve', 'get_product_price_history', 'product_metadata', 'missing_service_rates']:
             permission_classes = [IsAuthenticatedOrReadOnly]
         else: # create, update, partial_update, destroy
             permission_classes = [IsAuthenticated, IsAdminUser]
@@ -234,6 +234,25 @@ class ProductViewSet(viewsets.ModelViewSet):
 }
 
         return Response(data)
+
+    @action(detail=False, methods=['get'], url_path='missing-service-rates')
+    def missing_service_rates(self, request):
+        """
+        GET /api/products/missing-service-rates/
+        Returns a list of products that do not have any service rates defined.
+        """
+        from django.db.models import Count
+        products_without_rates = Product.objects.annotate(
+            service_rate_count=Count('job_service_rates')
+        ).filter(service_rate_count=0, is_active=True)
+
+        page = self.paginate_queryset(products_without_rates)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(products_without_rates, many=True)
+        return Response(serializer.data)
 
 
 class PriceHistoryViewSet(viewsets.ModelViewSet):

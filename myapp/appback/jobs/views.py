@@ -3,6 +3,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.db.models import Q, Sum, F, Count, Subquery, OuterRef
 from rest_framework.permissions import AllowAny
+from collections import defaultdict
 
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
@@ -20,6 +21,7 @@ from .serializers import (
     JobItemCreateUpdateSerializer,
     JobItemDeliverySerializer,
     ServiceRateSerializer,
+    HierarchicalServiceRateSerializer,
 )
 from .filters import JobFilter, JobItemFilter
 
@@ -555,3 +557,54 @@ class ServiceRateViewSet(viewsets.ModelViewSet):
     filterset_fields = ['service_category', 'product']
     search_fields = ['service_category', 'product__product_type', 'product__animal_type']
     ordering_fields = ['service_category', 'rate_per_unit', 'product__product_type']
+
+    def get_queryset(self):
+        return ServiceRate.objects.select_related('product').order_by('product__product_type', 'product__animal_type', 'service_category')
+
+    def perform_create(self, serializer):
+        # Custom logic for creating a service rate
+        serializer.save()
+
+    def perform_update(self, serializer):
+        # Custom logic for updating a service rate
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        # Custom logic for deleting a service rate
+        instance.delete()
+
+    @action(detail=False, methods=['get'], url_path='hierarchical')
+    def hierarchical_rates(self, request):
+        """
+        GET /api/service-rates/hierarchical/
+        Returns a hierarchical view of service rates, grouped by product and animal.
+        """
+        # Get all service rates with related product info
+        service_rates = ServiceRate.objects.select_related('product').order_by(
+            'product__product_type', 'product__animal_type', 'product__size_category'
+        )
+
+        # Group rates by product_type and animal_type
+        grouped_rates = defaultdict(list)
+        for rate in service_rates:
+            key = (rate.product.get_product_type_display(), rate.product.animal_type)
+            grouped_rates[key].append(rate)
+
+        # Structure the data for the serializer
+        output_data = []
+        for (product_category, animal), rates in grouped_rates.items():
+            # Further group by size
+            rates_by_size = defaultdict(lambda: {'size': ''})
+            for rate in rates:
+                size = rate.product.get_size_category_display()
+                rates_by_size[size]['size'] = size
+                rates_by_size[size][rate.service_category.capitalize()] = rate.rate_per_unit
+            
+            output_data.append({
+                'product_category': product_category,
+                'animal': animal,
+                'rates': list(rates_by_size.values())
+            })
+
+        serializer = HierarchicalServiceRateSerializer(output_data, many=True)
+        return Response(serializer.data)
