@@ -23,9 +23,11 @@ export default function LiveJobs() {
   if (error) return <div>Failed to load jobs</div>;
   if (!jobsData) return <div>Loading...</div>;
 
+  const jobs = Array.isArray(jobsData) ? jobsData : jobsData.results;
+
   return (
     <div className="space-y-4">
-      {jobsData.results.map((job) => (
+      {jobs.map((job) => (
         <div key={job.job_id} className="flex items-center justify-between p-4 border rounded-lg">
           <div className="flex-1">
             <div className="flex items-center space-x-2">

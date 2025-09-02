@@ -241,10 +241,11 @@ class ProductViewSet(viewsets.ModelViewSet):
         GET /api/products/missing-service-rates/
         Returns a list of products that do not have any service rates defined.
         """
-        from django.db.models import Count
-        products_without_rates = Product.objects.annotate(
-            service_rate_count=Count('job_service_rates')
-        ).filter(service_rate_count=0, is_active=True)
+        # Get all product IDs that have at least one service rate
+        products_with_rates_ids = ServiceRate.objects.values_list('product_id', flat=True).distinct()
+
+        # Get all active products that are not in the list of products with rates
+        products_without_rates = Product.objects.filter(is_active=True).exclude(id__in=products_with_rates_ids)
 
         page = self.paginate_queryset(products_without_rates)
         if page is not None:

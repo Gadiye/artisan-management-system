@@ -41,6 +41,6 @@ urlpatterns = [
     path('<str:job_id>/summary/', JobViewSet.as_view({'get': 'job_summary'}), name='job-summary'),
     
     # Include standalone viewsets
-    path('', include(standalone_router.urls)),
+    # path('', include(standalone_router.urls)),
     path('', include(router.urls)),
 ]
