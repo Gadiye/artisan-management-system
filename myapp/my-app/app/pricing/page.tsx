@@ -6,11 +6,262 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
 import { useHierarchicalServiceRates, useProductsWithoutServiceRates } from '@/hooks/useResource'
+import { useApi } from "@/hooks/useApi";
 import React, { useState, useMemo } from "react"
+import { Search } from 'lucide-react';
+
+const serviceCategories = ["Carving", "Sanding", "Painting", "Cutting", "Finishing"];
+
+const AddServiceRateDialog = ({ refetchRates }) => {
+  const { data: products } = useProductsWithoutServiceRates();
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [ratePerUnit, setRatePerUnit] = useState("");
+  const { post } = useApi("/service-rates/");
+
+  const filteredProducts = useMemo(() => {
+    if (!products) return [];
+    return products.filter(product =>
+      `${product.product_type} ${product.animal_type} ${product.size_category}`.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [products, searchQuery]);
+
+  const selectedProductData = useMemo(() => {
+    if (!selectedProduct || !products) return null;
+    return products.find(p => p.id === selectedProduct);
+  }, [selectedProduct, products]);
+
+  const handleSave = async () => {
+    if (!selectedProduct || !selectedCategory || !ratePerUnit) return;
+
+    const payload = {
+      product: selectedProduct,
+      service_category: selectedCategory,
+      rate_per_unit: ratePerUnit
+    };
+
+    await post(payload);
+    refetchRates();
+    setIsOpen(false);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button className="w-fit">Add New Rate</Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader className="pb-4">
+          <DialogTitle className="text-xl font-semibold">Add Service Rate</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* Product Selection Section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium">Product:</Label>
+              <div className="flex-1 border-b border-dashed border-muted-foreground/30"></div>
+              <span className="text-xs text-muted-foreground">Change/Add View</span>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            {/* Product Selection */}
+            <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a product" />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredProducts.length > 0 ? (
+                  filteredProducts.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">{product.product_type}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {product.animal_type} • {product.size_category}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="no-results" disabled>
+                    No products found
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+
+            {/* Selected Product Display */}
+            {selectedProductData && (
+              <div className="p-3 bg-muted/50 rounded-md border">
+                <div className="text-sm">
+                  <span className="font-medium">{selectedProductData.product_type}</span>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    - {selectedProductData.animal_type} - {selectedProductData.size_category}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Service Category Section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium">Service category:</Label>
+              <div className="flex-1 border-b border-dashed border-muted-foreground/30"></div>
+            </div>
+
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select service category" />
+              </SelectTrigger>
+              <SelectContent>
+                {serviceCategories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Separator />
+
+          {/* Rate Per Unit Section */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Rate per unit:</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">$</span>
+              <Input
+                type="number"
+                placeholder="0.00"
+                value={ratePerUnit}
+                onChange={(e) => setRatePerUnit(e.target.value)}
+                className="pl-8"
+                step="0.01"
+                min="0"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3 pt-6">
+          <Button variant="outline" onClick={() => setIsOpen(false)} className="flex-1">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={!selectedProduct || !selectedCategory || !ratePerUnit}
+            className="flex-1"
+          >
+            Save Rate
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+};
+
+const ServiceRatesTable = ({ filteredRates }) => {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Current Service Rates</CardTitle>
+        <CardDescription>Rates paid to artisans for each unit of work completed</CardDescription>
+      </CardHeader>
+      <CardContent className="p-6">
+        <div className="relative border rounded-md">
+          <div className="h-[600px] overflow-hidden flex flex-col">
+            {/* Fixed header */}
+            <div className="flex-shrink-0 border-b bg-background">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-40 border-r bg-background">Product Category</TableHead>
+                    <TableHead className="w-32 border-r bg-background">Animal</TableHead>
+                    <TableHead className="w-24 border-r bg-background">Size</TableHead>
+                    {serviceCategories.map((category) => (
+                      <TableHead key={category} className="w-32 border-r bg-background">
+                        {category} (Ksh)
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+              </Table>
+            </div>
+
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto">
+              <Table>
+                <TableBody>
+                  {filteredRates && filteredRates.length > 0 ? (
+                    filteredRates.map((group, groupIndex) => (
+                      <React.Fragment key={groupIndex}>
+                        {group.rates.map((rate, rateIndex) => (
+                          <TableRow key={`${groupIndex}-${rateIndex}`} className="hover:bg-muted/50">
+                            {rateIndex === 0 && (
+                              <>
+                                <TableCell rowSpan={group.rates.length} className="w-40 font-medium align-top border-r">
+                                  {group.product_category}
+                                </TableCell>
+                                <TableCell rowSpan={group.rates.length} className="w-32 font-medium align-top border-r">
+                                  {group.animal}
+                                </TableCell>
+                              </>
+                            )}
+                            <TableCell className="w-24 border-r">{rate.size}</TableCell>
+                            {serviceCategories.map((category) => (
+                              <TableCell key={category} className="w-32 border-r">
+                                {rate[category] ? Number.parseFloat(rate[category]).toFixed(2) : "-"}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </React.Fragment>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={serviceCategories.length + 3}
+                        className="text-center py-8 text-muted-foreground"
+                      >
+                        No service rates found.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 
 export default function PricingPage() {
-  const { data: hierarchicalRates, loading, error } = useHierarchicalServiceRates();
+  const { data: hierarchicalRates, loading, error, refetch: refetchRates } = useHierarchicalServiceRates();
   const { data: productsWithoutRates, loading: loadingProductsWithoutRates, error: errorProductsWithoutRates } = useProductsWithoutServiceRates();
   const [productFilter, setProductFilter] = useState("");
   const [missingRatesFilter, setMissingRatesFilter] = useState("");
@@ -33,8 +284,6 @@ export default function PricingPage() {
       product.size_category.toLowerCase().includes(missingRatesFilter.toLowerCase())
     );
   }, [productsWithoutRates, missingRatesFilter]);
-
-  const serviceCategories = ["Carving", "Sanding", "Painting", "Cutting", "Finishing"];
 
   if (loading) {
     return (
@@ -79,63 +328,10 @@ export default function PricingPage() {
           onChange={(e) => setProductFilter(e.target.value)}
           className="max-w-sm"
         />
-        {/* The "Add New Rate" dialog is removed for now as it needs to be adapted to the new data structure. */}
+        <AddServiceRateDialog refetchRates={refetchRates} />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Current Service Rates</CardTitle>
-          <CardDescription>Rates paid to artisans for each unit of work completed</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table className="border">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="border">Product Category</TableHead>
-                <TableHead className="border">Animal</TableHead>
-                <TableHead className="border">Size</TableHead>
-                {serviceCategories.map(category => (
-                  <TableHead key={category} className="border">{category} (Ksh)</TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredRates && filteredRates.length > 0 ? (
-                filteredRates.map((group, groupIndex) => (
-                  <React.Fragment key={groupIndex}>
-                    {group.rates.map((rate, rateIndex) => (
-                      <TableRow key={`${groupIndex}-${rateIndex}`}>
-                        {rateIndex === 0 && (
-                          <>
-                            <TableCell rowSpan={group.rates.length} className="font-medium align-top border">
-                              {group.product_category}
-                            </TableCell>
-                            <TableCell rowSpan={group.rates.length} className="font-medium align-top border">
-                              {group.animal}
-                            </TableCell>
-                          </>
-                        )}
-                        <TableCell className="border">{rate.size}</TableCell>
-                        {serviceCategories.map(category => (
-                          <TableCell key={category} className="border">
-                            {rate[category] ? parseFloat(rate[category]).toFixed(2) : "-"}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </React.Fragment>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={serviceCategories.length + 3} className="text-center py-8 text-muted-foreground">
-                    No service rates found.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <ServiceRatesTable filteredRates={filteredRates} />
 
       <Card className="mt-8">
         <CardHeader>

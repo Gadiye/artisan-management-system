@@ -14,10 +14,25 @@ export function useApi<T>(
   // It returns the cached data immediately, then re-fetches in the background.
   const { data, error, mutate, isLoading } = useSWR<T>(endpoint, fetcher, swrOptions);
 
+  const post = async (data: any) => {
+    return await apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data) });
+  };
+
+  const put = async (data: any) => {
+    return await apiRequest(endpoint, { method: 'PUT', body: JSON.stringify(data) });
+  };
+
+  const del = async () => {
+    return await apiRequest(endpoint, { method: 'DELETE' });
+  };
+
   return {
     data,
     error: error ? error.message : null,
     loading: isLoading,
     refetch: mutate, // SWR's mutate function can be used to manually re-trigger a fetch
+    post,
+    put,
+    del,
   }
 }

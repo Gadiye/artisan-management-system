@@ -9,12 +9,17 @@ standalone_router.register(r'job-items', JobItemViewSet, basename='jobitem')
 standalone_router.register(r'job-deliveries', JobDeliveryViewSet, basename='jobdelivery')
 standalone_router.register(r'service-rates', ServiceRateViewSet, basename='servicerates')
 
-# Create a router for the JobViewSet
-router = DefaultRouter()
-router.register(r'', JobViewSet, basename='job')
-
-
+# Explicitly define JobViewSet URLs instead of using a router for it
 urlpatterns = [
+    # Main JobViewSet routes
+    path('', JobViewSet.as_view({'get': 'list', 'post': 'create'}), name='job-list-create'),
+    path('<str:job_id>/', JobViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'patch': 'partial_update',
+        'delete': 'destroy'
+    }), name='job-detail'),
+
     # Job Items nested routes
     path('<str:job_id>/items/', JobViewSet.as_view({'get': 'list_job_items', 'post': 'create_job_item'}), name='job-items-list'),
     path('<str:job_id>/items/<int:item_pk>/', JobViewSet.as_view({
@@ -39,8 +44,4 @@ urlpatterns = [
     
     # Job summary route
     path('<str:job_id>/summary/', JobViewSet.as_view({'get': 'job_summary'}), name='job-summary'),
-    
-    # Include standalone viewsets
-    # path('', include(standalone_router.urls)),
-    path('', include(router.urls)),
 ]
