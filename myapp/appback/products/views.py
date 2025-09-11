@@ -440,6 +440,11 @@ def get_price(request):
             # If no specific service rate is found, service_rate_per_unit remains None
             pass
 
-        return Response({"id": product.id, "price": product.base_price, "service_rate_per_unit": service_rate_per_unit}, status=status.HTTP_200_OK)
+        return Response({
+            "id": product.id,
+            "price": product.base_price,
+            "service_rate_per_unit": service_rate_per_unit,
+            "unit_of_measure": product.unit_of_measure # Add this line
+        }, status=status.HTTP_200_OK)
     except Product.DoesNotExist:
         return Response({"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND)

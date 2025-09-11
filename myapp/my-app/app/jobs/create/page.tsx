@@ -81,6 +81,8 @@ export default function CreateJobPage() {
     animalType: "",
     sizeCategory: "",
     quantity: "", // Default to 1 instead of 0
+    pairs: "",
+    singles: "",
   });
 
   // Enable the price query only when all required fields are filled
@@ -133,8 +135,17 @@ export default function CreateJobPage() {
       alert("Please select an animal type");
       return;
     }
-    if (currentItem.quantity <= 0) {
-      alert("Please enter a valid quantity");
+    let quantityToOrder = 0;
+    if (productPrice?.unit_of_measure === 'PAIRS') {
+      const pairs = parseFloat(currentItem.pairs || '0');
+      const singles = parseFloat(currentItem.singles || '0');
+      quantityToOrder = (pairs * 2) + singles;
+    } else {
+      quantityToOrder = parseFloat(currentItem.quantity || '0');
+    }
+
+    if (quantityToOrder <= 0) {
+      alert("Please enter a valid quantity.");
       return;
     }
     if (!productPrice) {
@@ -151,10 +162,10 @@ export default function CreateJobPage() {
       return;
     }
 
-    // Use service_rate_per_unit for payment calculations
-    const ratePerUnit = productPrice.service_rate_per_unit;
+    // Use service_rate_per_unit for payment calculations, with fallback to base_price
+    const ratePerUnit = productPrice.service_rate_per_unit ?? productPrice.price;
     if (typeof ratePerUnit !== 'number') {
-      alert("Service rate not available for the selected options. Please ensure a rate is defined.");
+      alert("Price or service rate not available for the selected options. Please ensure a rate is defined or a base price is set.");
       return;
     }
 
@@ -174,7 +185,7 @@ export default function CreateJobPage() {
       product_type: currentItem.productType,
       animal_type: currentItem.animalType,
       size_category: currentItem.sizeCategory,
-      quantity_ordered: currentItem.quantity,
+      quantity_ordered: quantityToOrder,
       total_price: totalPrice,
       original_amount: ratePerUnit, // Now represents the rate per unit
       service_rate_per_unit: ratePerUnit,
@@ -190,6 +201,8 @@ export default function CreateJobPage() {
       animalType: "",
       sizeCategory: "MEDIUM",
       quantity: "",
+      pairs: "",
+      singles: "",
     });
   };
 
@@ -206,7 +219,7 @@ export default function CreateJobPage() {
     !currentItem.artisanId ||
     !currentItem.productType ||
     !currentItem.animalType ||
-    currentItem.quantity <= 0 ||
+    (productPrice?.unit_of_measure === 'PAIRS' ? (!currentItem.pairs && !currentItem.singles) : !currentItem.quantity) ||
     priceLoading ||
     !productPrice ||
     typeof productPrice.price !== 'number';
@@ -423,12 +436,31 @@ export default function CreateJobPage() {
                 </div>
                 <div>
                   <Label htmlFor="quantity">Quantity *</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={currentItem.quantity}
-                    onChange={(e) => setCurrentItem({ ...currentItem, quantity: Math.max(1, Number.parseInt(e.target.value) || 1) })}
-                  />
+                  {productPrice?.unit_of_measure === 'PAIRS' ? (
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        value={currentItem.pairs}
+                        onChange={(e) => setCurrentItem({ ...currentItem, pairs: e.target.value })}
+                        placeholder="Pairs"
+                      />
+                      <Input
+                        type="number"
+                        min="0"
+                        value={currentItem.singles}
+                        onChange={(e) => setCurrentItem({ ...currentItem, singles: e.target.value })}
+                        placeholder="Singles"
+                      />
+                    </div>
+                  ) : (
+                    <Input
+                      type="number"
+                      min="1"
+                      value={currentItem.quantity}
+                      onChange={(e) => setCurrentItem({ ...currentItem, quantity: Math.max(1, Number.parseInt(e.target.value) || 1) })}
+                    />
+                  )}
                 </div>
                 <div className="flex items-end">
                   <Button

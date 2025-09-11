@@ -63,7 +63,7 @@ class JobForPayslipSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = JobItem.job.field.model # Get the Job model from the JobItem's job field
-        fields = ['job_id'] # Assuming Job model has a 'job_id' field
+        fields = ['job_id', 'service_category'] # Assuming Job model has a 'job_id' field
 
 
 class JobItemForPayslipSerializer(serializers.ModelSerializer):

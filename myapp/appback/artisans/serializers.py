@@ -8,6 +8,22 @@ from jobs.models import JobItem, Job
 from payslips.models import Payslip
 
 
+class ArtisanWithPendingPaymentSerializer(serializers.ModelSerializer):
+    pending_payment_total = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        model = Artisan
+        fields = ['id', 'name', 'pending_payment_total']
+
+
+class JobWithPendingPaymentSerializer(serializers.ModelSerializer):
+    pending_payment = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        model = Job
+        fields = ['job_id', 'created_date', 'status', 'service_category', 'pending_payment']
+
+
 class ArtisanListSerializer(serializers.ModelSerializer):
     """
     A lightweight serializer for the Artisan list view, providing only essential information.

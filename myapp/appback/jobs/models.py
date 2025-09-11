@@ -76,7 +76,14 @@ class JobItem(models.Model):
 
         try:
             service_rate = ServiceRate.objects.get(product=self.product, service_category=self.job.service_category)
-            self.final_payment = service_rate.rate_per_unit * self.quantity_accepted
+            # Adjust quantity_accepted based on unit_of_measure for payment calculation
+            quantity_for_payment = self.quantity_accepted
+            if self.product.unit_of_measure == 'PAIRS':
+                quantity_for_payment = self.quantity_accepted / 2 # Divide by 2 for pairs
+
+            # Convert quantity_for_payment to Decimal before multiplication
+            from decimal import Decimal # Import Decimal
+            self.final_payment = service_rate.rate_per_unit * Decimal(str(quantity_for_payment))
         except ObjectDoesNotExist:
             # Handle case where no rate is defined for this product and service category
             self.final_payment = 0.00 # Default to 0 if no rate found

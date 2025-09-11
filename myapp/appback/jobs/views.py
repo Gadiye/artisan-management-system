@@ -1,7 +1,8 @@
 # jobs/views.py
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-from django.db.models import Q, Sum, F, Count, Subquery, OuterRef
+from django.db.models import Q, Sum, F, Count, Subquery, OuterRef, Value, Case, When, DecimalField
+from django.db.models.functions import Cast, Coalesce
 from rest_framework.permissions import AllowAny
 from collections import defaultdict
 
@@ -49,14 +50,21 @@ class JobViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = Job.objects.all().order_by('-created_date')
-        if self.action == 'list':
+        if self.action in ['list', 'retrieve']:
             service_rate_subquery = ServiceRate.objects.filter(
                 product=OuterRef('items__product'),
                 service_category=OuterRef('service_category')
             ).values('rate_per_unit')[:1]
+
+            adjusted_quantity = Case(
+                When(items__product__unit_of_measure='PAIRS', then=Cast(Coalesce(F('items__quantity_ordered'), 0), output_field=DecimalField(max_digits=10, decimal_places=2)) / 2),
+                default=Coalesce(F('items__quantity_ordered'), 0),
+                output_field=DecimalField(max_digits=10, decimal_places=2)
+            )
+
             queryset = queryset.annotate(
                 total_cost=Sum(
-                    F('items__quantity_ordered') * Subquery(service_rate_subquery)
+                    adjusted_quantity * Subquery(service_rate_subquery)
                 ),
                 total_final_payment=Sum('items__final_payment')
             )
@@ -427,6 +435,9 @@ class JobItemViewSet(viewsets.ModelViewSet):
             payslip_generated=False,
             quantity_accepted__gt=0
         ).order_by('-job__created_date')
+        
+        for backend in self.filter_backends:
+            queryset = backend().filter_queryset(self.request, queryset, self)
         
         page = self.paginate_queryset(queryset)
         if page is not None:

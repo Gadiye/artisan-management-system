@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
-import { useArtisans, usePayslips } from '@/hooks/useResource';
+import { useArtisans, usePayslips, useArtisansWithPendingPayments } from '@/hooks/useResource';
 import { api } from '@/lib/api';
 
 const serviceCategories = ["CARVING", "CUTTING", "PAINTING", "SANDING", "FINISHING", "FINISHED"]
@@ -24,6 +24,7 @@ const serviceCategories = ["CARVING", "CUTTING", "PAINTING", "SANDING", "FINISHI
 export default function PayslipsPage() {
   const { data: artisans, loading: artisansLoading, error: artisansError } = useArtisans();
   const { data: payslips, loading: payslipsLoading, error: payslipsError, refetch: refetchPayslips } = usePayslips();
+  const { data: artisansWithPendingPayments, loading: pendingPaymentsLoading, error: pendingPaymentsError } = useArtisansWithPendingPayments();
 
   const [selectedArtisan, setSelectedArtisan] = useState("")
   const [selectedService, setSelectedService] = useState("")
@@ -33,11 +34,11 @@ export default function PayslipsPage() {
 
   const safeArtisans = artisans || [];
   const safePayslips = payslips || [];
+  const safeArtisansWithPendingPayments = artisansWithPendingPayments || [];
 
   const totalPayslips = safePayslips.length
   const totalPayments = safePayslips.reduce((sum, p) => sum + (typeof p.total_payment === 'number' ? p.total_payment : parseFloat(p.total_payment) || 0), 0)
-  // Pending payments data is not yet integrated from API, so it will show 0
-  const pendingAmount = 0; 
+  const pendingAmount = safeArtisansWithPendingPayments.reduce((sum, artisan) => sum + (typeof artisan.pending_payment_total === 'number' ? artisan.pending_payment_total : parseFloat(artisan.pending_payment_total) || 0), 0);
 
   const handleGeneratePayslip = async () => {
     try {
@@ -82,7 +83,7 @@ export default function PayslipsPage() {
     }
   }
 
-  if (artisansLoading || payslipsLoading) {
+  if (artisansLoading || payslipsLoading || pendingPaymentsLoading) {
     return (
       <div className="container mx-auto p-6">
         <Skeleton className="h-10 w-64 mb-2" />
@@ -113,7 +114,7 @@ export default function PayslipsPage() {
     );
   }
 
-  if (artisansError || payslipsError) {
+  if (artisansError || payslipsError || pendingPaymentsError) {
     return (
       <div className="container mx-auto p-6">
         <Alert variant="destructive">
@@ -160,7 +161,7 @@ export default function PayslipsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${pendingAmount.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">Awaiting payslip generation (Not yet integrated)</p>
+            <p className="text-xs text-muted-foreground">Awaiting payslip generation</p>
           </CardContent>
         </Card>
 
@@ -386,28 +387,34 @@ export default function PayslipsPage() {
         <TabsContent value="pending">
           <Card>
             <CardHeader>
-              <CardTitle>Pending Payments</CardTitle>
-              <CardDescription>Artisans with completed work awaiting payslip generation (Not yet integrated)</CardDescription>
+              <CardTitle>Pending Payments Summary</CardTitle>
+              <CardDescription>Total pending payments for each artisan.</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Artisan</TableHead>
-                    <TableHead>Service Category</TableHead>
-                    <TableHead>Completed Jobs</TableHead>
-                    <TableHead>Total Amount</TableHead>
-                    <TableHead>Oldest Job</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>Total Pending Payment</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {/* No data for pending payments yet */}
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
-                      No pending payments to display.
-                    </TableCell>
-                  </TableRow>
+                  {safeArtisansWithPendingPayments && safeArtisansWithPendingPayments.length > 0 ? (
+                    safeArtisansWithPendingPayments.map((artisan) => (
+                      <TableRow key={artisan.id}>
+                        <TableCell>
+                          <Badge variant="outline">{artisan.name}</Badge>
+                        </TableCell>
+                        <TableCell>${Number(artisan.pending_payment_total).toFixed(2)}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={2} className="text-center text-muted-foreground">
+                        No pending payments found.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>

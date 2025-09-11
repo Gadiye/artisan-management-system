@@ -104,8 +104,11 @@ export interface PriceHistory {
   reason?: string;
 }
 
-export interface ProductPrice {
+export interface ProductPriceDetails {
+  id: number;
   price: number;
+  service_rate_per_unit?: number;
+  unit_of_measure?: string;
 }
 
 // Job creation payloads

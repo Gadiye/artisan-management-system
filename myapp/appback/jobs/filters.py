@@ -36,9 +36,15 @@ class JobItemFilter(django_filters.FilterSet):
     created_date_gte = django_filters.DateFilter(field_name='job__created_date', lookup_expr='date__gte', help_text='Job created on or after (YYYY-MM-DD).')
     created_date_lte = django_filters.DateFilter(field_name='job__created_date', lookup_expr='date__lte', help_text='Job created on or before (YYYY-MM-DD).')
 
+    service_category = django_filters.ChoiceFilter(
+        field_name='job__service_category',
+        choices=Product.SERVICE_CATEGORIES,
+        help_text='Filter by service category.'
+    )
+
     class Meta:
         model = JobItem
         fields = [
             'artisan', 'product', 'payslip_generated', 'job_id',
-            'created_date_gte', 'created_date_lte'
+            'created_date_gte', 'created_date_lte', 'service_category'
         ]

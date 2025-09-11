@@ -82,8 +82,10 @@ class Product(models.Model):
     base_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     is_active = models.BooleanField(default=True)
     last_price_update = models.DateTimeField(auto_now=True)
+    unit_of_measure = models.CharField(max_length=10, choices=[('ITEMS', 'Items'), ('PAIRS', 'Pairs')], default='ITEMS')
     
     class Meta:
+        ordering = ['id']
         unique_together = ['product_type', 'animal_type', 'size_category']
         indexes = [
             models.Index(fields=['product_type', 'animal_type']),

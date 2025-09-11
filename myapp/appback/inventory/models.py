@@ -59,6 +59,7 @@ class FinishedStock(models.Model):
         return f"{self.product} - Stock: {self.quantity}"
     
     class Meta:
+        ordering = ['id']
         verbose_name_plural = "Finished Stock"
         unique_together = ('product',)  # One record per product
         indexes = [

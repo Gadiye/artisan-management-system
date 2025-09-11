@@ -3,7 +3,7 @@
 
 import { useApi } from './useApi'
 import { api } from '../lib/api'
-import { Product } from '../lib/api/types'
+import { ProductPriceDetails } from '../lib/api/types'
 
 export function useProductPrice(
   productType?: string,
@@ -28,7 +28,7 @@ export function useProductPrice(
     ? `/products/get_price/?${params.toString()}`
     : null;
 
-  return useApi<Product>(
+  return useApi<ProductPriceDetails>(
     endpointUrl,
     {
       ...options,

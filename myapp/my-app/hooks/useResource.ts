@@ -1,6 +1,6 @@
 // hooks/useResource.ts
-import { useApi } from './useApi'
-import { PaginatedResponse, Job, Artisan, Product, Customer, Order, FinishedStock, Payslip, ServiceRate, InventoryItem, HierarchicalRate } from '@/types'
+import { useApi } from './useApi';
+import { PaginatedResponse, Job, Artisan, Product, Customer, Order, FinishedStock, Payslip, ServiceRate, InventoryItem, HierarchicalRate, JobItem } from '@/types';
 
 /**
  * Creates a reusable hook for fetching a list of resources.
@@ -33,6 +33,13 @@ export const useServiceRates = createResourceHook<ServiceRate>("/service-rates/"
 export const useHierarchicalServiceRates = createResourceHook<HierarchicalRate[]>("/service-rates/hierarchical/");
 export const useInventory = createResourceHook<InventoryItem>("/inventory/items/");
 export const useProductsWithoutServiceRates = createResourceHook<Product>("/products/missing-service-rates/");
+export const useArtisansWithPendingPayments = createResourceHook<Artisan[]>("/artisans/with-pending-payments/");
+
+export const usePendingPayslipItems = createResourceHook<JobItem[]>("/job-items/pending-payslip/");
+
+export function useArtisanPendingPayments(artisanId: number | null) {
+  return useApi<Job[]>(artisanId ? `/artisans/${artisanId}/pending-payments/` : null);
+}
 
 
 // --- Individual Resource Hooks ---

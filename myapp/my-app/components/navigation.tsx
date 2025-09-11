@@ -22,6 +22,7 @@ const navigation = [
   // { name: "orders", href : "/orders", icon: Package },
   { name: "finished stock", href : "/stock", icon: Package },
   { name: "payslip", href : "/payslips", icon: Package },
+  { name: "Pending Payments", href: "/payslips/pending", icon: DollarSign },
 ]
 
 export function Navigation() {

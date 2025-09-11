@@ -13,14 +13,16 @@ from django.db.models import Sum, Avg, Count, OuterRef, Subquery, F, DecimalFiel
 from django.db.models.functions import Coalesce
 from decimal import Decimal
 
-from jobs.models import JobItem
+from jobs.models import JobItem, Job
 from payslips.models import Payslip
 from .models import Artisan
 from .serializers import (
     ArtisanListSerializer, 
     ArtisanDetailSerializer,
     JobItemSerializer,
-    PayslipSerializer
+    PayslipSerializer,
+    JobWithPendingPaymentSerializer,
+    ArtisanWithPendingPaymentSerializer
 )
 
 
@@ -270,3 +272,50 @@ class ArtisanViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(is_active=False)
 
         return queryset
+
+    @action(detail=False, methods=['get'], url_path='with-pending-payments')
+    def with_pending_payments(self, request):
+        """
+        GET /api/artisans/with-pending-payments/
+        
+        Retrieve artisans who have pending payments.
+        """
+        artisans_with_pending_payments = Artisan.objects.filter(
+            jobitem__payslip_generated=False,
+            jobitem__quantity_accepted__gt=0
+        ).distinct().annotate(
+            pending_payment_total=Sum('jobitem__final_payment')
+        )
+
+        serializer = ArtisanWithPendingPaymentSerializer(artisans_with_pending_payments, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='pending-payments')
+    def pending_payments(self, request, pk=None):
+        """
+        GET /api/artisans/{id}/pending-payments/
+        
+        Retrieve jobs with pending payments for a specific artisan.
+        """
+        artisan = self.get_object()
+        
+        pending_job_items = JobItem.objects.filter(
+            artisan=artisan,
+            payslip_generated=False,
+            quantity_accepted__gt=0
+        ).values('job').annotate(
+            pending_payment=Sum('final_payment')
+        )
+
+        job_ids = [item['job'] for item in pending_job_items]
+        jobs = Job.objects.filter(job_id__in=job_ids)
+
+        # Create a dictionary to map job_id to pending_payment
+        pending_payments_map = {item['job']: item['pending_payment'] for item in pending_job_items}
+
+        # Add the pending_payment to each job object
+        for job in jobs:
+            job.pending_payment = pending_payments_map.get(job.job_id)
+
+        serializer = JobWithPendingPaymentSerializer(jobs, many=True)
+        return Response(serializer.data)

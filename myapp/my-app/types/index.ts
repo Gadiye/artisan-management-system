@@ -9,6 +9,7 @@ export interface ProductLite {
   animal_type: string;
   base_price: number;
   service_category: string;
+  unit_of_measure?: string; // Add this field
 }
 
 export interface JobDelivery {
