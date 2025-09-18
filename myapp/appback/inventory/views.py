@@ -24,9 +24,9 @@ from .filters import InventoryFilter
 from .filters import IsAdminOrReadOnly
 from rest_framework.pagination import PageNumberPagination
 class StandardResultsSetPagination(PageNumberPagination):
-    page_size = 10
+    page_size = 500
     page_size_query_param = 'page_size'
-    max_page_size = 100
+    max_page_size = 500
 
 class FinishedStockViewSet(viewsets.ModelViewSet):
     queryset = FinishedStock.objects.all()

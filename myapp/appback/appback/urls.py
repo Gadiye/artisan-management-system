@@ -47,6 +47,7 @@ urlpatterns = [
     path('api/inventory/', include('inventory.urls')),
     path('api/orders/', include('orders.urls')),
     path('api/payslips/', include('payslips.urls')),
+    
     path('api/', include(standalone_router.urls)),
 ]
 

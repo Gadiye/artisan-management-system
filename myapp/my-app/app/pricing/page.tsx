@@ -150,7 +150,7 @@ const AddServiceRateDialog = ({ refetchRates }) => {
           <div className="space-y-3">
             <Label className="text-sm font-medium">Rate per unit:</Label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">$</span>
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">Ksh</span>
               <Input
                 type="number"
                 placeholder="0.00"

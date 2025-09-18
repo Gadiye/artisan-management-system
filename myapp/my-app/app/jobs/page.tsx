@@ -138,7 +138,7 @@ export default function JobsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${totalActiveJobValue.toFixed(2)}
+              Ksh{totalActiveJobValue.toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground">Active jobs value</p>
           </CardContent>
@@ -198,7 +198,7 @@ export default function JobsPage() {
                       <Badge variant="secondary">{job.service_category}</Badge>
                     </TableCell>
                     <TableCell>{job.created_by}</TableCell>
-                    <TableCell className="font-medium">${Number(job.total_cost).toFixed(2)}</TableCell>
+                    <TableCell className="font-medium">Ksh{Number(job.total_cost).toFixed(2)}</TableCell>
                     <TableCell>
                       <Badge variant={job.status === "COMPLETED" ? "default" : "secondary"}>
                         {/* Cleanly display status by replacing underscores with spaces */}

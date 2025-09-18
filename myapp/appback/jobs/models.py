@@ -1,6 +1,7 @@
 # jobs/models.py
 
 from django.db import models
+from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 from products.models import Product
 from artisans.models import Artisan
@@ -13,7 +14,7 @@ class Job(models.Model):
     ]
     
     job_id = models.AutoField(primary_key=True)
-    created_date = models.DateTimeField(auto_now_add=True)
+    created_date = models.DateTimeField(default=timezone.now)
     created_by = models.CharField(max_length=100)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='IN_PROGRESS')
     service_category = models.CharField(max_length=50, choices=Product.SERVICE_CATEGORIES)
@@ -97,7 +98,7 @@ class JobDelivery(models.Model):
     quantity_received = models.PositiveIntegerField()
     quantity_accepted = models.PositiveIntegerField(default=0)
     rejection_reason = models.CharField(max_length=20, choices=JobItem.REJECTION_REASONS, blank=True, null=True)
-    delivery_date = models.DateTimeField(auto_now_add=True)
+    delivery_date = models.DateTimeField(default=timezone.now)
     notes = models.TextField(blank=True, null=True)
     
     def save(self, *args, **kwargs):

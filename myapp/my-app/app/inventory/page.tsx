@@ -183,7 +183,7 @@ export default function InventoryPage() {
             <CardTitle className="text-sm font-medium">Total Value</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalInventoryValue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">Ksh{totalInventoryValue.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">Inventory valuation</p>
           </CardContent>
         </Card>
@@ -209,109 +209,112 @@ export default function InventoryPage() {
         </Card>
       </div>
 
-      {/* Inventory Filters */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Inventory Filters</CardTitle>
-          <CardDescription>Filter inventory by product type, animal, or stage</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Select value={selectedProductType} onValueChange={setSelectedProductType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Product Types" />
-                </SelectTrigger>
-                <SelectContent>
-                  {productTypesOptions.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type === "all" ? "All Product Types" : type.replace(/_/g, " ")}
-                    </SelectItem>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1">
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Inventory Filters</CardTitle>
+              <CardDescription>Filter inventory by product type, animal, or stage</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Select value={selectedProductType} onValueChange={setSelectedProductType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Product Types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {productTypesOptions.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type === "all" ? "All Product Types" : type.replace(/_/g, " ")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Select value={selectedAnimalType} onValueChange={setSelectedAnimalType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Animals" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {animalTypesOptions.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type === "all" ? "All Animals" : type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Select value={selectedStage} onValueChange={setSelectedStage}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Stages" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Stages</SelectItem>
+                      {serviceStages.map((stage) => (
+                        <SelectItem key={stage} value={stage}>
+                          {stage}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Current Inventory</CardTitle>
+              <CardDescription>All items currently in stock</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>
+                      <div className="flex items-center gap-1">
+                        Product Type
+                        <ArrowUpDown className="h-3 w-3" />
+                      </div>
+                    </TableHead>
+                    <TableHead>Animal</TableHead>
+                    <TableHead>Stage</TableHead>
+                    <TableHead className="text-right">Quantity</TableHead>
+                    <TableHead className="text-right">Avg. Cost</TableHead>
+                    <TableHead className="text-right">Total Value</TableHead>
+                    <TableHead>Last Updated</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredInventory.map((item: EnrichedInventoryItem) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <Badge variant="outline">{(item.product_type ?? '').replace(/_/g, " ")}</Badge>
+                      </TableCell>
+                      <TableCell>{item.animal_type ?? ''}</TableCell>
+                      <TableCell>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStageColor(item.service_category)}`}
+                        >
+                          {item.service_category}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">{item.quantity}</TableCell>
+                      <TableCell className="text-right">Ksh{item.average_cost.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-medium">Ksh{(item.quantity * item.average_cost).toFixed(2)}</TableCell>
+                      <TableCell className="text-muted-foreground">{new Date(item.last_updated).toLocaleDateString()}</TableCell>
+                    </TableRow>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Select value={selectedAnimalType} onValueChange={setSelectedAnimalType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Animals" />
-                </SelectTrigger>
-                <SelectContent>
-                  {animalTypesOptions.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type === "all" ? "All Animals" : type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Select value={selectedStage} onValueChange={setSelectedStage}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Stages" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Stages</SelectItem>
-                  {serviceStages.map((stage) => (
-                    <SelectItem key={stage} value={stage}>
-                      {stage}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Inventory Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Current Inventory</CardTitle>
-          <CardDescription>All items currently in stock</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  <div className="flex items-center gap-1">
-                    Product Type
-                    <ArrowUpDown className="h-3 w-3" />
-                  </div>
-                </TableHead>
-                <TableHead>Animal</TableHead>
-                <TableHead>Stage</TableHead>
-                <TableHead className="text-right">Quantity</TableHead>
-                <TableHead className="text-right">Avg. Cost</TableHead>
-                <TableHead className="text-right">Total Value</TableHead>
-                <TableHead>Last Updated</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredInventory.map((item: EnrichedInventoryItem) => (
-                <TableRow key={item.id}>
-                  <TableCell>
-                    <Badge variant="outline">{(item.product_type ?? '').replace(/_/g, " ")}</Badge>
-                  </TableCell>
-                  <TableCell>{item.animal_type ?? ''}</TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStageColor(item.service_category)}`}
-                    >
-                      {item.service_category}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right font-medium">{item.quantity}</TableCell>
-                  <TableCell className="text-right">${item.average_cost.toFixed(2)}</TableCell>
-                  <TableCell className="text-right font-medium">${(item.quantity * item.average_cost).toFixed(2)}</TableCell>
-                  <TableCell className="text-muted-foreground">{new Date(item.last_updated).toLocaleDateString()}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   )
 }

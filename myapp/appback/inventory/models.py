@@ -29,6 +29,7 @@ class Inventory(models.Model):
     )
     last_updated = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)  # For soft deletion
+    last_audit_date = models.DateTimeField(null=True, blank=True)
     
     def __str__(self):
         return f"{self.product} - Qty: {self.quantity}"
@@ -54,6 +55,7 @@ class FinishedStock(models.Model):
     )
     last_updated = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)  # For soft deletion
+    last_audit_date = models.DateTimeField(null=True, blank=True)
     
     def __str__(self):
         return f"{self.product} - Stock: {self.quantity}"

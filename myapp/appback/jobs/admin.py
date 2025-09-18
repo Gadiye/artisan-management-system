@@ -8,5 +8,16 @@ class ServiceRateAdmin(admin.ModelAdmin):
     search_fields = ('product__product_type', 'product__animal_type')
     
 
-admin.site.register(Job)
-admin.site.register(JobItem)
+@admin.register(Job)
+class JobAdmin(admin.ModelAdmin):
+    list_display = ('job_id', 'created_by', 'created_date', 'status', 'service_category')
+    list_filter = ('status', 'service_category', 'created_date')
+    search_fields = ('job_id', 'created_by')
+    readonly_fields = ('job_id',)
+
+@admin.register(JobItem)
+class JobItemAdmin(admin.ModelAdmin):
+    list_display = ('job', 'artisan', 'product', 'quantity_ordered', 'quantity_received', 'quantity_accepted')
+    list_filter = ('job__service_category', 'artisan')
+    search_fields = ('job__job_id', 'artisan__name', 'product__product_type')
+

@@ -51,7 +51,7 @@ const SIZE_CATEGORIES = [
 const ANIMAL_TYPES = [
   "LION", "ZEBRA", "GIRAFFE", "DONKEY", "LEOPARD", "CHEETAH", "ELEPHANT",
   "CAT", "HIPPO", "GAZELLE", "LIONESS", "BUFFALO", "RHINO", "GUINEA FOWL",
-  "GORILLA",
+  "GORILLA", "SAMPLE",
 ]
 
 interface JobItemDisplay extends JobItemPayload {
@@ -62,6 +62,7 @@ interface JobItemDisplay extends JobItemPayload {
   animal_type: string;
   size_category: string;
   service_rate_per_unit?: number; // Add this new field
+  product: number; // product ID
 }
 
 export default function CreateJobPage() {
@@ -169,7 +170,7 @@ export default function CreateJobPage() {
       return;
     }
 
-    const totalPrice = ratePerUnit * currentItem.quantity;
+    const totalPrice = ratePerUnit * parseFloat(currentItem.quantity);
     const selectedArtisan = artisans?.find((a) => a.id === currentItem.artisanId);
 
     if (!selectedArtisan) {
@@ -199,7 +200,7 @@ export default function CreateJobPage() {
       artisanId: currentItem.artisanId,
       productType: "",
       animalType: "",
-      sizeCategory: "MEDIUM",
+      sizeCategory: "",
       quantity: "",
       pairs: "",
       singles: "",
@@ -256,6 +257,8 @@ export default function CreateJobPage() {
           animalType: "",
           sizeCategory: "",
           quantity: "",
+          singles:"",
+          pairs: "",
         });
       }
     } catch (error) {
@@ -547,8 +550,8 @@ export default function CreateJobPage() {
                         <TableCell>{item.animal_type}</TableCell>
                         <TableCell>{item.size_category.replace(/_/g, " ")}</TableCell>
                         <TableCell>{item.quantity_ordered}</TableCell>
-                        <TableCell>${item.original_amount.toFixed(2)}</TableCell>
-                        <TableCell className="font-medium">${item.total_price.toFixed(2)}</TableCell>
+                        <TableCell>Ksh{item.original_amount.toFixed(2)}</TableCell>
+                        <TableCell className="font-medium">Ksh{item.total_price.toFixed(2)}</TableCell>
                         <TableCell>
                           <Button variant="ghost" size="sm" onClick={() => removeJobItem(item.id)}>
                             <Trash2 className="h-4 w-4" />
@@ -588,7 +591,7 @@ export default function CreateJobPage() {
               <div className="pt-4 border-t">
                 <div className="flex justify-between items-center">
                   <Label className="text-base font-medium">Total Job Value</Label>
-                  <span className="text-lg font-bold">${totalJobValue.toFixed(2)}</span>
+                  <span className="text-lg font-bold">Ksh{totalJobValue.toFixed(2)}</span>
                 </div>
               </div>
 
@@ -629,7 +632,7 @@ export default function CreateJobPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-sm">Total Value:</span>
-                <span className="font-medium">${totalJobValue.toFixed(2)}</span>
+                <span className="font-medium">Ksh{totalJobValue.toFixed(2)}</span>
               </div>
             </div>
           </div>

@@ -142,7 +142,7 @@ export default function JobDetailsPage({ params }: PageProps) {
             <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${job.total_cost ? Number(job.total_cost).toFixed(2) : '0.00'}</div>
+            <div className="text-2xl font-bold">Ksh{job.total_cost ? Number(job.total_cost).toFixed(2) : '0.00'}</div>
             <p className="text-xs text-muted-foreground">Estimated total payment</p>
           </CardContent>
         </Card>
@@ -192,8 +192,8 @@ export default function JobDetailsPage({ params }: PageProps) {
                   <TableCell>{item.quantity_received}</TableCell>
                   <TableCell>{item.quantity_accepted}</TableCell>
                   <TableCell>{item.quantity_ordered - item.quantity_received}</TableCell>
-                  <TableCell>${Number(item.original_amount).toFixed(2)}</TableCell>
-                  <TableCell>${Number(item.final_payment).toFixed(2)}</TableCell>
+                  <TableCell>Ksh{Number(item.original_amount).toFixed(2)}</TableCell>
+                  <TableCell>Ksh{Number(item.final_payment).toFixed(2)}</TableCell>
                   <TableCell>
                     <RecordDeliveryDialog jobItem={item} refetchJob={refetch} disabled={item.quantity_ordered <= item.quantity_received} />
                   </TableCell>
