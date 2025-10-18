@@ -224,7 +224,6 @@ def artisan_stats(request, pk):
         )
 
 
-@method_decorator(name='list', decorator=cache_page(60 * 15))
 class ArtisanViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -263,14 +262,6 @@ class ArtisanViewSet(viewsets.ModelViewSet):
                 pending_payment=Coalesce(Subquery(pending_payment_subquery, output_field=DecimalField()), Decimal('0.0'))
             )
         
-        # Handle filtering for is_active for all actions
-        is_active_param = self.request.query_params.get('is_active')
-        if is_active_param is not None:
-            if is_active_param.lower() in ['true', '1']:
-                queryset = queryset.filter(is_active=True)
-            elif is_active_param.lower() in ['false', '0']:
-                queryset = queryset.filter(is_active=False)
-
         return queryset
 
     @action(detail=False, methods=['get'], url_path='with-pending-payments')

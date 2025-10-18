@@ -3,7 +3,7 @@ from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, AllowAny
 
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import transaction
@@ -20,7 +20,7 @@ from inventory.models import FinishedStock
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all().select_related('customer').prefetch_related('items__product')
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    permission_classes = [IsAuthenticatedOrReadOnly] # Adjust as per your auth needs
+    permission_classes = [AllowAny] # Adjust as per your auth needs
 
     # Filtering
     filterset_fields = {

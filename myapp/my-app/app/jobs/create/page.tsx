@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Import API hooks and types
 import { useArtisans } from '@/hooks/useResource';
@@ -63,7 +64,17 @@ interface JobItemDisplay extends JobItemPayload {
   size_category: string;
   service_rate_per_unit?: number; // Add this new field
   product: number; // product ID
+  quantity_ordered: number;
+  original_amount: number;
 }
+
+interface RecentItem {
+  productType: string;
+  animalType: string;
+  sizeCategory: string;
+}
+
+const RECENT_ITEMS_CACHE_KEY = "recent-job-items-cache";
 
 export default function CreateJobPage() {
   const router = useRouter();
@@ -75,6 +86,8 @@ export default function CreateJobPage() {
   const [jobItems, setJobItems] = useState<JobItemDisplay[]>([]);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [newJobId, setNewJobId] = useState<number | null>(null);
+  const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
+  const [bypassInventoryDeduction, setBypassInventoryDeduction] = useState(false);
 
   const [currentItem, setCurrentItem] = useState({
     artisanId: 0,
@@ -85,6 +98,31 @@ export default function CreateJobPage() {
     pairs: "",
     singles: "",
   });
+
+  // --- CACHING LOGIC ---
+  const CACHE_KEY = "create-job-cache";
+
+  useEffect(() => {
+    const cachedData = sessionStorage.getItem(CACHE_KEY);
+    if (cachedData) {
+      const { serviceCategory, notes, jobItems, currentItem } = JSON.parse(cachedData);
+      setServiceCategory(serviceCategory);
+      setNotes(notes);
+      setJobItems(jobItems);
+      setCurrentItem(currentItem);
+    }
+
+    const cachedRecentItems = localStorage.getItem(RECENT_ITEMS_CACHE_KEY);
+    if (cachedRecentItems) {
+      setRecentItems(JSON.parse(cachedRecentItems));
+    }
+  }, []);
+
+  useEffect(() => {
+    const dataToCache = JSON.stringify({ serviceCategory, notes, jobItems, currentItem });
+    sessionStorage.setItem(CACHE_KEY, dataToCache);
+  }, [serviceCategory, notes, jobItems, currentItem]);
+
 
   // Enable the price query only when all required fields are filled
   const shouldFetchPrice = !!(
@@ -170,7 +208,7 @@ export default function CreateJobPage() {
       return;
     }
 
-    const totalPrice = ratePerUnit * parseFloat(currentItem.quantity);
+    const totalPrice = ratePerUnit * quantityToOrder;
     const selectedArtisan = artisans?.find((a) => a.id === currentItem.artisanId);
 
     if (!selectedArtisan) {
@@ -194,10 +232,42 @@ export default function CreateJobPage() {
 
     console.log("Adding new item:", newItem);
     setJobItems([...jobItems, newItem]);
+
+    const newRecentItem: RecentItem = {
+      productType: currentItem.productType,
+      animalType: currentItem.animalType,
+      sizeCategory: currentItem.sizeCategory,
+    };
+
+    // Add to recent items, avoiding duplicates and limiting to 20
+    const updatedRecentItems = [newRecentItem, ...recentItems.filter(
+      item => !(item.productType === newRecentItem.productType &&
+               item.animalType === newRecentItem.animalType &&
+               item.sizeCategory === newRecentItem.sizeCategory)
+    )].slice(0, 20);
+
+    setRecentItems(updatedRecentItems);
+    localStorage.setItem(RECENT_ITEMS_CACHE_KEY, JSON.stringify(updatedRecentItems));
     
     // Reset form but keep artisan selected
     setCurrentItem({
       artisanId: currentItem.artisanId,
+      productType: currentItem.productType,
+      animalType: currentItem.animalType,
+      sizeCategory: currentItem.sizeCategory,
+      quantity: "",
+      pairs: "",
+      singles: "",
+    });
+  };
+
+  const removeJobItem = (id: string) => {
+    setJobItems(jobItems.filter((item) => item.id !== id));
+  };
+
+  const clearForm = () => {
+    setCurrentItem({
+      artisanId: 0,
       productType: "",
       animalType: "",
       sizeCategory: "",
@@ -207,8 +277,21 @@ export default function CreateJobPage() {
     });
   };
 
-  const removeJobItem = (id: string) => {
-    setJobItems(jobItems.filter((item) => item.id !== id));
+  const duplicateLastItem = () => {
+    if (jobItems.length === 0) {
+      alert("There are no items to duplicate.");
+      return;
+    }
+    const lastItem = jobItems[jobItems.length - 1];
+    setCurrentItem({
+      artisanId: lastItem.artisan,
+      productType: lastItem.product_type,
+      animalType: lastItem.animal_type,
+      sizeCategory: lastItem.size_category,
+      quantity: String(lastItem.quantity_ordered),
+      pairs: "",
+      singles: "",
+    });
   };
 
   const totalJobValue = jobItems.reduce((sum, item) => sum + item.total_price, 0);
@@ -241,6 +324,7 @@ export default function CreateJobPage() {
       service_category: serviceCategory,
       notes: notes || "",
       items: jobItemsPayload,
+      bypass_inventory_deduction: bypassInventoryDeduction,
     };
 
     try {
@@ -260,6 +344,7 @@ export default function CreateJobPage() {
           singles:"",
           pairs: "",
         });
+        sessionStorage.removeItem(CACHE_KEY);
       }
     } catch (error) {
       console.error("Submission error caught in component:", error);
@@ -274,6 +359,30 @@ export default function CreateJobPage() {
 
   const handleCreateAnother = () => {
     setShowSuccessDialog(false);
+    sessionStorage.removeItem(CACHE_KEY);
+  };
+
+  const handleExport = async () => {
+    if (jobItems.length === 0) {
+      alert("There are no job items to export.");
+      return;
+    }
+
+    const dataToExport = jobItems.map(item => ({
+      "Artisan Name": item.artisanName,
+      "Product Type": item.product_type,
+      "Animal Type": item.animal_type,
+      "Size Category": item.size_category,
+      "Quantity Ordered": item.quantity_ordered,
+      "Rate per Unit": item.original_amount,
+      "Total Price": item.total_price,
+    }));
+  // Dynamically import the xlsx library
+  const XLSX = await import('xlsx');
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Job Items");
+    XLSX.writeFile(wb, "job_items.xlsx");
   };
 
   if (artisansLoading) {
@@ -352,8 +461,44 @@ export default function CreateJobPage() {
                   placeholder="Any special instructions or notes for this job..."
                 />
               </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox id="bypass-inventory" checked={bypassInventoryDeduction} onCheckedChange={setBypassInventoryDeduction} />
+                <label
+                  htmlFor="bypass-inventory"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Bypass inventory deduction
+                </label>
+              </div>
             </CardContent>
           </Card>
+
+          {recentItems.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Items</CardTitle>
+                <CardDescription>Click to pre-fill the form</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-2">
+                {recentItems.map((item, index) => (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    onClick={() => {
+                      setCurrentItem({
+                        ...currentItem,
+                        productType: item.productType,
+                        animalType: item.animalType,
+                        sizeCategory: item.sizeCategory,
+                      });
+                    }}
+                  >
+                    {item.productType.replace(/_/g, " ")} / {item.animalType} / {item.sizeCategory.replace(/_/g, " ")}
+                  </Button>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -454,6 +599,14 @@ export default function CreateJobPage() {
                         value={currentItem.singles}
                         onChange={(e) => setCurrentItem({ ...currentItem, singles: e.target.value })}
                         placeholder="Singles"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (!isAddButtonDisabled) {
+                              addJobItem();
+                            }
+                          }
+                        }}
                       />
                     </div>
                   ) : (
@@ -461,11 +614,19 @@ export default function CreateJobPage() {
                       type="number"
                       min="1"
                       value={currentItem.quantity}
-                      onChange={(e) => setCurrentItem({ ...currentItem, quantity: Math.max(1, Number.parseInt(e.target.value) || 1) })}
+                      onChange={(e) => setCurrentItem({ ...currentItem, quantity: String(Math.max(1, Number.parseInt(e.target.value) || 1)) })}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (!isAddButtonDisabled) {
+                            addJobItem();
+                          }
+                        }
+                      }}
                     />
                   )}
                 </div>
-                <div className="flex items-end">
+                <div className="flex flex-col gap-2">
                   <Button
                     onClick={addJobItem}
                     className="w-full"
@@ -473,6 +634,13 @@ export default function CreateJobPage() {
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Item
+                  </Button>
+                  <Button
+                    onClick={clearForm}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    Clear
                   </Button>
                 </div>
               </div>
@@ -522,9 +690,14 @@ export default function CreateJobPage() {
 
           {jobItems.length > 0 && (
             <Card>
-              <CardHeader>
-                <CardTitle>Job Items ({jobItems.length})</CardTitle>
-                <CardDescription>Items assigned to this job</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Job Items ({jobItems.length})</CardTitle>
+                  <CardDescription>Items assigned to this job</CardDescription>
+                </div>
+                <Button onClick={duplicateLastItem} variant="outline" size="sm" disabled={jobItems.length === 0}>
+                  Duplicate Last Item
+                </Button>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -541,7 +714,7 @@ export default function CreateJobPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {jobItems.map((item) => (
+                    {jobItems.sort((a, b) => a.product_type.localeCompare(b.product_type)).map((item) => (
                       <TableRow key={item.id}>
                         <TableCell>{item.artisanName}</TableCell>
                         <TableCell>
@@ -550,8 +723,8 @@ export default function CreateJobPage() {
                         <TableCell>{item.animal_type}</TableCell>
                         <TableCell>{item.size_category.replace(/_/g, " ")}</TableCell>
                         <TableCell>{item.quantity_ordered}</TableCell>
-                        <TableCell>Ksh{item.original_amount.toFixed(2)}</TableCell>
-                        <TableCell className="font-medium">Ksh{item.total_price.toFixed(2)}</TableCell>
+                        <TableCell>Ksh{typeof item.original_amount === 'number' ? item.original_amount.toFixed(2) : 'N/A'}</TableCell>
+                        <TableCell className="font-medium">Ksh{typeof item.total_price === 'number' ? item.total_price.toFixed(2) : 'N/A'}</TableCell>
                         <TableCell>
                           <Button variant="ghost" size="sm" onClick={() => removeJobItem(item.id)}>
                             <Trash2 className="h-4 w-4" />
@@ -591,15 +764,23 @@ export default function CreateJobPage() {
               <div className="pt-4 border-t">
                 <div className="flex justify-between items-center">
                   <Label className="text-base font-medium">Total Job Value</Label>
-                  <span className="text-lg font-bold">Ksh{totalJobValue.toFixed(2)}</span>
-                </div>
-              </div>
-
-              <Button
-                onClick={handleSubmit}
-                className="w-full"
-                disabled={jobItems.length === 0 || !serviceCategory || createJobLoading}
-              >
+                                    <span className="text-lg font-bold">Ksh{totalJobValue.toFixed(2)}</span>
+                                  </div>
+                                </div>
+                  
+                                <Button
+                                  onClick={handleExport}
+                                  className="w-full mb-2" 
+                                  variant="outline"
+                                  disabled={jobItems.length === 0}>
+                                    Export to Spreadsheet
+                                </Button>
+                  
+                                <Button
+                                  onClick={handleSubmit}
+                                  className="w-full"
+                                  disabled={jobItems.length === 0 || !serviceCategory || createJobLoading}
+                                >
                 {createJobLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Job
               </Button>

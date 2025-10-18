@@ -4,35 +4,17 @@ import { useState, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
 import { Plus, Search, Edit, Eye, Mail, Phone, MapPin } from "lucide-react"
 import Link from "next/link"
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useCustomers } from '@/hooks/useResource';
-import { api } from '@/lib/api';
 
 export default function CustomersPage() {
   const { data: customers, loading, error, refetch } = useCustomers();
   const [searchTerm, setSearchTerm] = useState("")
-  const [showAddDialog, setShowAddDialog] = useState(false)
-  const [newCustomer, setNewCustomer] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-  })
 
   const safeCustomers = useMemo(() => customers || [], [customers]);
 
@@ -44,21 +26,10 @@ export default function CustomersPage() {
     );
   }, [safeCustomers, searchTerm]);
 
-  const handleAddCustomer = async () => {
-    try {
-      await api.customers.create(newCustomer);
-      refetch();
-      setNewCustomer({ name: "", email: "", phone: "", address: "" });
-      setShowAddDialog(false);
-    } catch (err) {
-      alert(`Failed to add customer: ${(err as Error).message}`);
-    }
-  };
-
   const activeCustomers = useMemo(() => safeCustomers.filter((c) => c.is_active).length, [safeCustomers]);
-  const totalRevenue = 0; // Not directly available from API
-  const avgOrderValue = 0; // Not directly available from API
-  const newCustomersThisMonth = 0; // Not directly available from API
+  const totalRevenue = useMemo(() => safeCustomers.reduce((acc, c) => acc + (c.total_spent || 0), 0), [safeCustomers]);
+  const avgOrderValue = totalRevenue / (safeCustomers.reduce((acc, c) => acc + (c.total_orders || 0), 0) || 1);
+  const newCustomersThisMonth = useMemo(() => safeCustomers.filter(c => new Date(c.created_date) > new Date(new Date().setDate(1))).length, [safeCustomers]);
 
   if (loading) {
     return (
@@ -92,21 +63,19 @@ export default function CustomersPage() {
   }
 
   if (error) {
-  const safeError = error as unknown;
-
-  return (
-    <div className="container mx-auto p-6">
-      <Alert variant="destructive">
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>
-          {safeError instanceof Error ? safeError.message : "An unknown error occurred."}
-        </AlertDescription>
-      </Alert>
-      <Button onClick={refetch} className="mt-4">Retry</Button>
-    </div>
-  );
-}
-
+    const safeError = error as unknown;
+    return (
+      <div className="container mx-auto p-6">
+        <Alert variant="destructive">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>
+            {safeError instanceof Error ? safeError.message : "An unknown error occurred."}
+          </AlertDescription>
+        </Alert>
+        <Button onClick={refetch} className="mt-4">Retry</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6">
@@ -116,68 +85,12 @@ export default function CustomersPage() {
             <h1 className="text-3xl font-bold">Customer Management</h1>
             <p className="text-muted-foreground mt-2">Manage your customer database and relationships</p>
           </div>
-          <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Customer
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Customer</DialogTitle>
-                <DialogDescription>Enter the customer&apos;s information below.</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Name *</Label>
-                  <Input
-                    id="name"
-                    value={newCustomer.name}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
-                    placeholder="Customer name"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={newCustomer.email}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
-                    placeholder="customer@email.com"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    value={newCustomer.phone}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
-                    placeholder="+1 (555) 123-4567"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="address">Address</Label>
-                  <Textarea
-                    id="address"
-                    value={newCustomer.address}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
-                    placeholder="Customer address"
-                    rows={3}
-                  />
-                </div>
-                <div className="flex gap-2 pt-4">
-                  <Button onClick={handleAddCustomer} disabled={!newCustomer.name}>
-                    Add Customer
-                  </Button>
-                  <Button variant="outline" onClick={() => setShowAddDialog(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Link href="/customers/create">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Customer
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -199,7 +112,7 @@ export default function CustomersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${totalRevenue.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">From all customers (Not yet integrated)</p>
+            <p className="text-xs text-muted-foreground">From all customers</p>
           </CardContent>
         </Card>
 
@@ -209,7 +122,7 @@ export default function CustomersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${avgOrderValue.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">Per order (Not yet integrated)</p>
+            <p className="text-xs text-muted-foreground">Per order</p>
           </CardContent>
         </Card>
 
@@ -219,7 +132,7 @@ export default function CustomersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{newCustomersThisMonth}</div>
-            <p className="text-xs text-muted-foreground">New customers (Not yet integrated)</p>
+            <p className="text-xs text-muted-foreground">New customers</p>
           </CardContent>
         </Card>
       </div>
@@ -300,9 +213,11 @@ export default function CustomersPage() {
                           <Eye className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Button variant="ghost" size="sm">
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      <Link href={`/customers/${customer.id}/edit`}>
+                        <Button variant="ghost" size="sm">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </Link>
                     </div>
                   </TableCell>
                 </TableRow>

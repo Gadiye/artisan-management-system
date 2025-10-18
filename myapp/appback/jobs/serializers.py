@@ -53,6 +53,7 @@ class JobItemCreateUpdateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         job = self.context['job']
+        bypass_inventory_deduction = self.context.get('bypass_inventory_deduction', False)
         validated_data['job'] = job
 
         product = validated_data['product']
@@ -72,7 +73,7 @@ class JobItemCreateUpdateSerializer(serializers.ModelSerializer):
 
         previous_categories_to_check = PRODUCTION_CHAIN_MAP.get(current_service_category)
 
-        if previous_categories_to_check:
+        if previous_categories_to_check and not bypass_inventory_deduction:
             from inventory.models import Inventory # Local import to avoid circular dependency
 
             deducted = False
@@ -193,12 +194,13 @@ class JobCreateUpdateSerializer(serializers.ModelSerializer):
     items = JobItemCreateUpdateSerializer(many=True, write_only=True)
     created_by = serializers.CharField(read_only=True)
     status = serializers.CharField(read_only=True)
+    bypass_inventory_deduction = serializers.BooleanField(write_only=True, required=False, default=False)
 
     class Meta:
         model = Job
         fields = [
             'job_id', 'created_date', 'created_by', 'status', 
-            'service_category', 'notes', 'items'
+            'service_category', 'notes', 'items', 'bypass_inventory_deduction'
         ]
         read_only_fields = ['job_id', 'created_date']
 
@@ -212,6 +214,7 @@ class JobCreateUpdateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
+        bypass_inventory_deduction = validated_data.pop('bypass_inventory_deduction', False)
         job = Job.objects.create(**validated_data)
         for item_data in items_data:
             # Extract PKs from the validated model instances
@@ -220,7 +223,7 @@ class JobCreateUpdateSerializer(serializers.ModelSerializer):
                 'product': item_data['product'].id,
                 'quantity_ordered': item_data['quantity_ordered'],
             }
-            item_serializer = JobItemCreateUpdateSerializer(data=processed_item_data, context={'job': job})
+            item_serializer = JobItemCreateUpdateSerializer(data=processed_item_data, context={'job': job, 'bypass_inventory_deduction': bypass_inventory_deduction})
             item_serializer.is_valid(raise_exception=True)
             item_serializer.save() # This will call the create method of JobItemCreateUpdateSerializer
         return job

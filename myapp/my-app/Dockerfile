@@ -9,6 +9,7 @@ COPY package*.json ./
 
 # Install dependencies
 RUN npm install
+RUN npm install xlsx
 
 # Copy the rest of your frontend application code
 COPY . .

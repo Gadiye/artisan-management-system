@@ -125,6 +125,8 @@ export interface JobItemPayload {
 export interface CreateJobPayload {
   service_category: string;
   notes?: string;
+  bypass_inventory_deduction?: boolean;
+  items: JobItemPayload[];
 }
 
 export interface ServiceRate {
