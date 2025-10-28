@@ -131,9 +131,17 @@ export default function JobDetailsPage({ params }: PageProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {job.items.length > 0 ? `${job.items.length}` : 'Not assigned'}
+              {(() => {
+                const uniqueArtisans = new Set(job.items.map(item => {
+                  if (typeof item.artisan === 'object' && item.artisan !== null) {
+                    return item.artisan.name;
+                  }
+                  return String(item.artisan); // Fallback if it's not an object, or null
+                }));
+                return uniqueArtisans.size > 0 ? `${uniqueArtisans.size}` : 'Not assigned';
+              })()}
             </div>
-            <p className="text-xs text-muted-foreground">Assigned artisan</p>
+            <p className="text-xs text-muted-foreground">Artisans involved</p>
           </CardContent>
         </Card>
 
@@ -210,7 +218,7 @@ export default function JobDetailsPage({ params }: PageProps) {
           <CardDescription>Additional notes for this job</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-base text-black font-bold">
             {job.notes || "No notes for this job."}
           </p>
         </CardContent>

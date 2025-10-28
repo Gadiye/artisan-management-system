@@ -55,6 +55,37 @@ const ANIMAL_TYPES = [
   "GORILLA", "SAMPLE",
 ]
 
+// Function to generate a consistent color based on a string
+const getColorForString = (str: string) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+
+  const colorCombos = [
+    "bg-blue-500 text-white border-blue-600",
+    "bg-green-500 text-white border-green-600",
+    "bg-yellow-500 text-gray-900 border-yellow-600",
+    "bg-red-500 text-white border-red-600",
+    "bg-purple-500 text-white border-purple-600",
+    "bg-indigo-500 text-white border-indigo-600",
+    "bg-pink-500 text-white border-pink-600",
+    "bg-orange-500 text-white border-orange-600",
+    "bg-teal-500 text-white border-teal-600",
+    "bg-cyan-500 text-white border-cyan-600",
+    "bg-lime-500 text-gray-900 border-lime-600",
+    "bg-fuchsia-500 text-white border-fuchsia-600",
+    "bg-rose-500 text-white border-rose-600",
+    "bg-emerald-500 text-white border-emerald-600",
+    "bg-violet-500 text-white border-violet-600",
+    "bg-amber-500 text-gray-900 border-amber-600",
+    "bg-sky-500 text-white border-sky-600",
+    "bg-slate-600 text-white border-slate-700",
+  ];
+  
+  return colorCombos[Math.abs(hash) % colorCombos.length];
+};
+
 interface JobItemDisplay extends JobItemPayload {
   id: string;
   artisanName: string;
@@ -484,6 +515,7 @@ export default function CreateJobPage() {
                   <Button
                     key={index}
                     variant="outline"
+                    className={getColorForString(item.productType)}
                     onClick={() => {
                       setCurrentItem({
                         ...currentItem,
