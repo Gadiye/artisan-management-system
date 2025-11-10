@@ -9,6 +9,7 @@ export interface Product {
   service_rate_per_unit: number; // Added this field
   is_active: boolean
   last_price_update: string
+  unit_of_measure: string; // Added this field
 }
 
 export interface Artisan {

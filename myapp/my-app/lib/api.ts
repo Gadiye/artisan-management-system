@@ -118,7 +118,13 @@ export interface FinishedStock {
 
 export interface InventoryItem {
   id: number;
-  product: number; // Product ID
+  product: {
+    id: number;
+    product_type: string;
+    animal_type: string;
+    size_category: string;
+    unit_of_measure?: string;
+  };
   service_category: string;
   quantity: number;
   average_cost: number;

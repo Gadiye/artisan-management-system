@@ -1,8 +1,9 @@
-# jobs/serializers.py
+from django.db import transaction
 from rest_framework import serializers
-from .models import Job, JobItem, JobDelivery, ServiceRate
-from artisans.models import Artisan # Assuming Artisan app
-from products.models import Product # Assuming Product app
+from .models import Job, JobItem, JobDelivery, ServiceRate, JobTransaction
+from artisans.models import Artisan
+from products.models import Product
+from inventory.models import Inventory, InventoryReservation
 
 # --- Lite Serializers for Nested Data ---
 
@@ -27,7 +28,6 @@ class JobItemDeliverySerializer(serializers.ModelSerializer):
         read_only_fields = ['delivery_date']
 
     def validate(self, data):
-        # Additional validation can be added here, e.g., quantity_accepted <= quantity_received
         if data.get('quantity_accepted', 0) > data.get('quantity_received', 0):
             raise serializers.ValidationError("Quantity accepted cannot exceed quantity received.")
         return data
@@ -44,28 +44,23 @@ class JobItemCreateUpdateSerializer(serializers.ModelSerializer):
             'id', 'artisan', 'product', 'quantity_ordered', 'quantity_received',
             'quantity_accepted', 'rejection_reason', 'payslip_generated'
         ]
-        read_only_fields = ['payslip_generated', 'quantity_received', 'quantity_accepted', 'rejection_reason'] # These are managed by deliveries
+        read_only_fields = ['payslip_generated', 'quantity_received', 'quantity_accepted', 'rejection_reason']
         extra_kwargs = {
             'quantity_ordered': {'min_value': 1}
         }
 
-    
+    def _create_inventory_reservation(self, job_item, bypass_inventory_deduction):
+        if bypass_inventory_deduction:
+            return
 
-    def create(self, validated_data):
-        job = self.context['job']
-        bypass_inventory_deduction = self.context.get('bypass_inventory_deduction', False)
-        validated_data['job'] = job
-
-        product = validated_data['product']
-        quantity_ordered = validated_data['quantity_ordered']
-        # Use the job's service_category as the current_service_category for deduction logic
+        job = job_item.job
+        product = job_item.product
+        quantity_ordered = job_item.quantity_ordered
         current_service_category = job.service_category
 
-        # Define the production chain mapping
-        # Key: current service category of the job item
-        # Value: list of possible previous service categories to deduct from (in order of preference)
         PRODUCTION_CHAIN_MAP = {
-            'SANDING': ['CARVING', 'CUTTING'],
+            'CUTTING': ['DRAWING'],
+            'SANDING': ['CUTTING', 'CARVING'],
             'PAINTING': ['SANDING'],
             'FINISHING': ['PAINTING'],
             'FINISHED': ['FINISHING'],
@@ -73,59 +68,60 @@ class JobItemCreateUpdateSerializer(serializers.ModelSerializer):
 
         previous_categories_to_check = PRODUCTION_CHAIN_MAP.get(current_service_category)
 
-        if previous_categories_to_check and not bypass_inventory_deduction:
-            from inventory.models import Inventory # Local import to avoid circular dependency
-
-            deducted = False
+        if previous_categories_to_check:
+            inventory_item_to_reserve = None
             for prev_cat in previous_categories_to_check:
-                print(f"Attempting to deduct from product: {product.id} ({product.product_type} - {product.animal_type}), service_category: {prev_cat}, ordered: {quantity_ordered}")
                 try:
-                    inventory_item = Inventory.objects.get(
+                    inventory_item = Inventory.objects.select_for_update().get(
                         product=product,
                         service_category=prev_cat
                     )
-                    print(f"Found inventory item: ID={inventory_item.id}, Current Quantity={inventory_item.quantity}, Is Active={inventory_item.is_active}")
-
                     if inventory_item.quantity >= quantity_ordered:
-                        inventory_item.quantity -= quantity_ordered
-                        inventory_item.save()
-                        deducted = True
-                        print(f"Deduction successful. New quantity: {inventory_item.quantity}")
-                        break # Successfully deducted, move to next item
-                    else:
-                        print(f"Insufficient quantity in {prev_cat}. Needed: {quantity_ordered}, Available: {inventory_item.quantity}")
-                        continue
-
+                        inventory_item_to_reserve = inventory_item
+                        break
                 except Inventory.DoesNotExist:
-                    print(f"Inventory item not found for product {product.id} and service_category {prev_cat}")
                     continue
 
-            if not deducted:
-                # If we reached here, it means deduction failed from all possible previous categories
+            if inventory_item_to_reserve:
+                InventoryReservation.objects.create(
+                    job_item=job_item,
+                    inventory=inventory_item_to_reserve,
+                    quantity_reserved=quantity_ordered
+                )
+                
+                # Create a job transaction for the material movement
+                JobTransaction.objects.create(
+                    job=job,
+                    product=product,
+                    from_stage=inventory_item_to_reserve.service_category,
+                    to_stage=current_service_category,
+                    quantity=quantity_ordered
+                )
+
+                inventory_item_to_reserve.quantity -= quantity_ordered
+                inventory_item_to_reserve.save()
+            else:
                 raise serializers.ValidationError(
                     f"Insufficient or no stock found in previous stages ({', '.join(previous_categories_to_check)}) "
                     f"for {product.product_type} - {product.animal_type} (Ordered: {quantity_ordered})."
                 )
 
-        # original_amount and final_payment are set in model's save method
-        return super().create(validated_data)
+    def create(self, validated_data):
+        job = self.context['job']
+        validated_data['job'] = job
+        job_item = super().create(validated_data)
+        return job_item
 
     def update(self, instance, validated_data):
-        # Prevent changing job for an existing job item
         if 'job' in validated_data and validated_data['job'] != instance.job:
             raise serializers.ValidationError({"job": "Job cannot be changed for an existing job item."})
-        # Prevent changing artisan or product after creation if desired
         if 'artisan' in validated_data and validated_data['artisan'] != instance.artisan:
             raise serializers.ValidationError({"artisan": "Artisan cannot be changed for an existing job item."})
         if 'product' in validated_data and validated_data['product'] != instance.product:
             raise serializers.ValidationError({"product": "Product cannot be changed for an existing job item."})
 
-        # Manual fields are quantity_ordered
         instance.quantity_ordered = validated_data.get('quantity_ordered', instance.quantity_ordered)
-        # Other fields (quantity_received, quantity_accepted, rejection_reason, payslip_generated)
-        # are updated by JobDelivery or Payslip logic, so they are read-only here.
-
-        instance.save() # This will trigger the model's save and update job status
+        instance.save()
         return instance
 
 
@@ -133,7 +129,7 @@ class JobItemDetailListSerializer(serializers.ModelSerializer):
     """Serializer for listing and retrieving JobItems, with nested related data."""
     artisan = ArtisanJobItemLiteSerializer(read_only=True)
     product = ProductJobItemLiteSerializer(read_only=True)
-    deliveries = JobItemDeliverySerializer(many=True, read_only=True) # Nested deliveries
+    deliveries = JobItemDeliverySerializer(many=True, read_only=True)
     service_rate_per_unit = serializers.SerializerMethodField()
 
     class Meta:
@@ -151,15 +147,11 @@ class JobItemDetailListSerializer(serializers.ModelSerializer):
 
     def get_service_rate_per_unit(self, obj):
         from django.core.exceptions import ObjectDoesNotExist
-        print(f"Attempting to get service rate for Product ID: {obj.product.id}, Job Service Category: {obj.job.service_category}")
         try:
-            # Get the service rate based on the job item's product and the job's service category
             service_rate = ServiceRate.objects.get(product=obj.product, service_category=obj.job.service_category)
-            print(f"  Found ServiceRate: {service_rate.rate_per_unit}")
             return service_rate.rate_per_unit
         except ObjectDoesNotExist:
-            print(f"  ServiceRate not found for Product ID {obj.product.id} and Service Category '{obj.job.service_category}'.")
-            return None # Or 0.00, depending on how you want to represent missing rates
+            return None
 
 
 # --- Job Serializers ---
@@ -183,7 +175,7 @@ class JobListSerializer(serializers.ModelSerializer):
 
 class JobDetailSerializer(JobListSerializer):
     """Serializer for retrieving a single Job, with nested JobItems."""
-    items = JobItemDetailListSerializer(many=True, read_only=True) # Nested job items
+    items = JobItemDetailListSerializer(many=True, read_only=True)
 
     class Meta(JobListSerializer.Meta):
         fields = JobListSerializer.Meta.fields + ['items']
@@ -207,37 +199,34 @@ class JobCreateUpdateSerializer(serializers.ModelSerializer):
     def validate_items(self, value):
         if not value:
             raise serializers.ValidationError("A job must have at least one item.")
-        
-        # This validation was removed because Product.service_category no longer exists.
-        # The job's service_category now defines the stage, not the product's inherent category.
         return value
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
         bypass_inventory_deduction = validated_data.pop('bypass_inventory_deduction', False)
-        job = Job.objects.create(**validated_data)
-        for item_data in items_data:
-            # Extract PKs from the validated model instances
-            processed_item_data = {
-                'artisan': item_data['artisan'].id,
-                'product': item_data['product'].id,
-                'quantity_ordered': item_data['quantity_ordered'],
-            }
-            item_serializer = JobItemCreateUpdateSerializer(data=processed_item_data, context={'job': job, 'bypass_inventory_deduction': bypass_inventory_deduction})
-            item_serializer.is_valid(raise_exception=True)
-            item_serializer.save() # This will call the create method of JobItemCreateUpdateSerializer
+        
+        with transaction.atomic():
+            job = Job.objects.create(**validated_data)
+            
+            for item_data in items_data:
+                processed_item_data = {
+                    'artisan': item_data['artisan'].id,
+                    'product': item_data['product'].id,
+                    'quantity_ordered': item_data['quantity_ordered'],
+                }
+                item_serializer = JobItemCreateUpdateSerializer(data=processed_item_data, context={'job': job})
+                item_serializer.is_valid(raise_exception=True)
+                job_item = item_serializer.save()
+                
+                # Create inventory reservation
+                item_serializer._create_inventory_reservation(job_item, bypass_inventory_deduction)
+
         return job
 
     def update(self, instance, validated_data):
-        # Basic job fields update
         instance.service_category = validated_data.get('service_category', instance.service_category)
         instance.notes = validated_data.get('notes', instance.notes)
         instance.save()
-
-        # For updating items, it's better to use the dedicated JobItem endpoints
-        # as handling nested updates here can be complex (e.g., identifying which item to update).
-        # If full nested updates are needed, this logic would need to be expanded significantly.
-        
         return instance
 
     def validate_service_category(self, value):
@@ -247,7 +236,7 @@ class JobCreateUpdateSerializer(serializers.ModelSerializer):
 
 
 class ServiceRateSerializer(serializers.ModelSerializer):
-    product = ProductJobItemLiteSerializer(read_only=True) # Use the lite serializer for nested product details
+    product = ProductJobItemLiteSerializer(read_only=True)
 
     class Meta:
         model = ServiceRate
@@ -258,6 +247,7 @@ class ServiceRateSerializer(serializers.ModelSerializer):
 class RateDetailSerializer(serializers.Serializer):
     """Describes the rates for a specific size."""
     size = serializers.CharField()
+    Drawing = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
     Carving = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
     Sanding = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
     Painting = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
@@ -269,3 +259,9 @@ class HierarchicalServiceRateSerializer(serializers.Serializer):
     product_category = serializers.CharField()
     animal = serializers.CharField()
     rates = RateDetailSerializer(many=True)
+
+class JobTransactionSerializer(serializers.ModelSerializer):
+    """Serializer for JobTransaction model."""
+    class Meta:
+        model = JobTransaction
+        fields = ['id', 'job', 'product', 'from_stage', 'to_stage', 'quantity', 'timestamp']

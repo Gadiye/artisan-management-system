@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,31 +9,36 @@ import { ArrowUpDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { useProducts, useInventory } from '@/hooks/useResource';
+import { useInventory } from '@/hooks/useResource';
+import { Product } from "@/types";
+import { TransactionHistoryModal } from "@/components/transaction-history-modal";
+
 
 
 interface EnrichedInventoryItem {
-  id: number; // InventoryItem ID
+  id: number;
   quantity: number;
   average_cost: number;
-  last_updated: string; // From InventoryItem
-
-  // Product details (from Product model)
-  product_id: number; // The ID of the associated product
-  product_type: string;
-  animal_type: string;
-  service_category: string; // This is the service_category from InventoryItem
-  base_price: number; // From Product
-  product_last_price_update: string; // From Product
+  last_updated: string;
+  product: {
+    id: number;
+    product_type: string;
+    animal_type: string;
+    size_category: string;
+    unit_of_measure?: string;
+  };
+  service_category: string;
 }
 
 
 
-const serviceStages = ["CARVING", "SANDING", "PAINTING", "FINISHED"]
+const serviceStages = ["DRAWING", "CARVING", "CUTTING", "SANDING", "PAINTING", "FINISHED"]
 
 function getStageColor(stage: string) {
   const colors: Record<string, string> = {
+    DRAWING: "bg-red-100 text-red-800",
     CARVING: "bg-blue-100 text-blue-800",
+    CUTTING: "bg-orange-100 text-orange-800",
     SANDING: "bg-yellow-100 text-yellow-800",
     PAINTING: "bg-purple-100 text-purple-800",
     FINISHED: "bg-green-100 text-green-800",
@@ -52,51 +57,44 @@ function getErrorMessage(error: unknown): string {
 }
 
 export default function InventoryPage() {
-  const { data: products, loading: productsLoading, error: productsError } = useProducts();
   const { data: inventory, loading: inventoryLoading, error: inventoryError } = useInventory();
 
   const [selectedProductType, setSelectedProductType] = useState("all");
   const [selectedAnimalType, setSelectedAnimalType] = useState("all");
   const [selectedStage, setSelectedStage] = useState("all");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
 
   const readyForNextStage = "N/A"; // Moved declaration to the top
 
-  const safeProducts = useMemo(() => products || [], [products]);
   const safeInventory = useMemo(() => Array.isArray(inventory) ? inventory : [], [inventory]);
+
 
   const filteredInventory = useMemo(() => {
     const enrichedInventory: EnrichedInventoryItem[] = safeInventory.map(inventoryItem => {
-      const productDetail = safeProducts.find(p => p.id === Number(inventoryItem.product.id));
-      console.log("Inventory Item:", inventoryItem);
-      console.log("Product Detail Found:", productDetail);
-      console.log("safeProducts:", safeProducts);
       return {
         id: inventoryItem.id,
         quantity: inventoryItem.quantity,
         average_cost: Number(inventoryItem.average_cost || 0),
         last_updated: inventoryItem.last_updated,
-        product_id: inventoryItem.product,
-        product_type: productDetail?.product_type || 'N/A',
-        animal_type: productDetail?.animal_type || 'N/A',
+        product: inventoryItem.product,
         service_category: inventoryItem.service_category || 'N/A',
-        base_price: productDetail?.base_price || 0,
-        product_last_price_update: productDetail?.last_price_update || 'N/A',
       };
     }).filter(item => item.service_category !== 'FINISHED'); // Filter out FINISHED items
 
     let finalFiltered = enrichedInventory;
 
     if (selectedProductType !== "all") {
-      finalFiltered = finalFiltered.filter(item => item.product_type === selectedProductType);
+      finalFiltered = finalFiltered.filter(item => item.product.product_type === selectedProductType);
     }
     if (selectedAnimalType !== "all") {
-      finalFiltered = finalFiltered.filter(item => item.animal_type === selectedAnimalType);
+      finalFiltered = finalFiltered.filter(item => item.product.animal_type === selectedAnimalType);
     }
     if (selectedStage !== "all") {
       finalFiltered = finalFiltered.filter(item => item.service_category === selectedStage);
     }
     return finalFiltered;
-  }, [safeProducts, safeInventory, selectedProductType, selectedAnimalType, selectedStage]);
+  }, [safeInventory, selectedProductType, selectedAnimalType, selectedStage]);
 
   const totalInventoryValue = filteredInventory.reduce((sum, item) => sum + (item.quantity * item.average_cost), 0);
   const totalItems = filteredInventory.reduce((sum, item) => sum + item.quantity, 0);
@@ -106,17 +104,17 @@ export default function InventoryPage() {
 
   const productTypesOptions = useMemo(() => {
     const types = new Set<string>();
-    safeProducts.forEach(p => types.add(p.product_type));
+    safeInventory.forEach(i => types.add(i.product.product_type));
     return ["all", ...Array.from(types)];
-  }, [safeProducts]);
+  }, [safeInventory]);
 
   const animalTypesOptions = useMemo(() => {
     const types = new Set<string>();
-    safeProducts.forEach(p => types.add(p.animal_type));
+    safeInventory.forEach(i => types.add(i.product.animal_type));
     return ["all", ...Array.from(types)];
-  }, [safeProducts]);
+  }, [safeInventory]);
 
-  if (productsLoading || inventoryLoading) {
+  if (inventoryLoading) {
     return (
       <div className="container mx-auto p-6">
         <Skeleton className="h-10 w-64 mb-2" />
@@ -147,14 +145,14 @@ export default function InventoryPage() {
     );
   }
 
-  if (productsError || inventoryError) {
+  if (inventoryError) {
     return (
       <div className="container mx-auto p-6">
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{getErrorMessage(productsError) || getErrorMessage(inventoryError)}</AlertDescription>
+          <AlertDescription>{getErrorMessage(inventoryError)}</AlertDescription>
         </Alert>
-        <Button onClick={() => { /* refetchProducts(); refetchInventory(); */ }} className="mt-4">Retry</Button>
+        <Button onClick={() => { /* refetchInventory(); */ }} className="mt-4">Retry</Button>
       </div>
     );
   }
@@ -287,26 +285,59 @@ export default function InventoryPage() {
                     <TableHead className="text-right">Avg. Cost</TableHead>
                     <TableHead className="text-right">Total Value</TableHead>
                     <TableHead>Last Updated</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredInventory.map((item: EnrichedInventoryItem) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <Badge variant="outline">{(item.product_type ?? '').replace(/_/g, " ")}</Badge>
+                    <TableRow key={item.id} className="py-2">
+                      <TableCell className="text-sm">
+                        <Badge variant="outline">{(item.product.product_type ?? '').replace(/_/g, " ")}</Badge>
                       </TableCell>
-                      <TableCell>{item.animal_type ?? ''}</TableCell>
-                      <TableCell>
+                      <TableCell className="text-sm">{item.product.animal_type ?? ''}</TableCell>
+                      <TableCell className="text-sm">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStageColor(item.service_category)}`}
                         >
                           {item.service_category}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right font-medium">{item.quantity}</TableCell>
-                      <TableCell className="text-right">Ksh{item.average_cost.toFixed(2)}</TableCell>
-                      <TableCell className="text-right font-medium">Ksh{(item.quantity * item.average_cost).toFixed(2)}</TableCell>
-                      <TableCell className="text-muted-foreground">{new Date(item.last_updated).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right font-medium text-sm">
+                        {item.product.unit_of_measure === 'PAIRS' ? 
+                          (() => {
+                            const pairs = Math.floor(item.quantity / 2);
+                            const singles = item.quantity % 2;
+                            let quantityDisplay = '';
+                            if (pairs > 0) {
+                              quantityDisplay += `${pairs} pair(s)`;
+                            }
+                            if (singles > 0) {
+                              if (quantityDisplay) {
+                                quantityDisplay += ' + ';
+                              }
+                              quantityDisplay += `${singles} single(s)`;
+                            }
+                            return quantityDisplay || '0 items';
+                          })()
+                          : 
+                          <>{item.quantity} items</>
+                        }
+                      </TableCell>
+                      <TableCell className="text-right text-sm">Ksh{item.average_cost.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-medium text-sm">Ksh{(item.quantity * item.average_cost).toFixed(2)}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{new Date(item.last_updated).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedProductId(item.product.id);
+                            setIsModalOpen(true);
+                          }}
+                        >
+                          Trace
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -315,6 +346,11 @@ export default function InventoryPage() {
           </Card>
         </div>
       </div>
+      <TransactionHistoryModal
+        productId={selectedProductId}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </div>
   )
 }

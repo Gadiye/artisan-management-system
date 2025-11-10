@@ -24,7 +24,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'product_type', 'product_type_display', 'animal_type',
             'size_category',
-            'size_category_display', 'base_price', 'is_active', 'last_price_update'
+            'size_category_display', 'base_price', 'is_active', 'last_price_update', 'unit_of_measure'
         ]
         read_only_fields = ['last_price_update']
 

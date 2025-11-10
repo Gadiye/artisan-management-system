@@ -7,6 +7,7 @@ class Inventory(models.Model):
     service_category = models.CharField(
         max_length=50, 
         choices=[
+            ('DRAWING', 'Drawing'),
             ('CARVING', 'Carving'),
             ('CUTTING', 'Cutting'),
             ('PAINTING', 'Painting'),
@@ -79,8 +80,89 @@ class ActiveFinishedStockManager(models.Manager):
         return super().get_queryset().filter(is_active=True)
 
 # Add managers to the models
+
 Inventory.add_to_class('objects', models.Manager())  # Default manager
+
 Inventory.add_to_class('active', ActiveInventoryManager())  # Active records only
 
+
+
 FinishedStock.add_to_class('objects', models.Manager())  # Default manager
+
 FinishedStock.add_to_class('active', ActiveFinishedStockManager())  # Active records only
+
+
+
+class InventoryReservation(models.Model):
+
+    job_item = models.ForeignKey(
+
+        'jobs.JobItem', 
+
+        on_delete=models.CASCADE, 
+
+        related_name='reservations'
+
+    )
+
+    inventory = models.ForeignKey(
+
+        Inventory, 
+
+        on_delete=models.PROTECT, 
+
+        related_name='reservations'
+
+    )
+
+    quantity_reserved = models.PositiveIntegerField()
+
+    
+
+    class ReservationStatus(models.TextChoices):
+
+        PENDING = 'PENDING', 'Pending'
+
+        COMMITTED = 'COMMITTED', 'Committed'
+
+        CANCELLED = 'CANCELLED', 'Cancelled'
+
+
+
+    status = models.CharField(
+
+        max_length=10,
+
+        choices=ReservationStatus.choices,
+
+        default=ReservationStatus.PENDING
+
+    )
+
+    
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+
+    def __str__(self):
+
+        return f"Reservation for {self.job_item} - Qty: {self.quantity_reserved} - Status: {self.status}"
+
+
+
+    class Meta:
+
+        verbose_name_plural = "Inventory Reservations"
+
+        indexes = [
+
+            models.Index(fields=['job_item']),
+
+            models.Index(fields=['inventory']),
+
+            models.Index(fields=['status']),
+
+        ]

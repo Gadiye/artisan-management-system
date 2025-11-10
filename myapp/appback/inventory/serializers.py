@@ -1,9 +1,17 @@
 from rest_framework import serializers
 from django.utils import timezone
-from .models import Inventory, FinishedStock
+from .models import Inventory, FinishedStock, InventoryReservation
 from products.models import Product
 from products.serializers import ProductSerializer
 from jobs.models import JobDelivery
+
+
+class InventoryReservationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InventoryReservation
+        fields = ['id', 'job_item', 'inventory', 'quantity_reserved', 'status']
+
+
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -12,7 +20,7 @@ class ProductSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = Product
-        fields = ['id', 'product_type', 'animal_type', 'size_category']
+        fields = ['id', 'product_type', 'animal_type', 'size_category', 'unit_of_measure']
         read_only_fields = ['id']
 
 

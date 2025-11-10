@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 
 // Import API hooks and types
-import { useArtisans } from '@/hooks/useResource';
+import { useArtisans, useInventory } from '@/hooks/useResource';
 import { useCreateJob } from '@/hooks/useCreateJob';
 import { JobItemPayload, CreateJobPayload } from '@/lib/api/types';
 import { useProductPrice } from '@/hooks/useProductPrice';
@@ -54,6 +54,14 @@ const ANIMAL_TYPES = [
   "CAT", "HIPPO", "GAZELLE", "LIONESS", "BUFFALO", "RHINO", "GUINEA FOWL",
   "GORILLA", "SAMPLE",
 ]
+
+const PRODUCTION_CHAIN_MAP: { [key: string]: string[] } = {
+    'CUTTING': ['DRAWING'],
+    'SANDING': ['CUTTING', 'CARVING'],
+    'PAINTING': ['SANDING'],
+    'FINISHING': ['PAINTING'],
+    'FINISHED': ['FINISHING'],
+}
 
 // Function to generate a consistent color based on a string
 const getColorForString = (str: string) => {
@@ -110,6 +118,7 @@ const RECENT_ITEMS_CACHE_KEY = "recent-job-items-cache";
 export default function CreateJobPage() {
   const router = useRouter();
   const { data: artisans, loading: artisansLoading, error: artisansError } = useArtisans();
+  const { data: inventory, loading: inventoryLoading, error: inventoryError } = useInventory();
   const { createJob, loading: createJobLoading, error: createJobError } = useCreateJob();
 
   const [serviceCategory, setServiceCategory] = useState<string>("");
@@ -129,6 +138,39 @@ export default function CreateJobPage() {
     pairs: "",
     singles: "",
   });
+
+  const availableInventory = useMemo(() => {
+    if (!inventory) return {};
+
+    const sourceCategories = PRODUCTION_CHAIN_MAP[serviceCategory];
+    
+    let filteredInventory = [];
+    if (sourceCategories) {
+      filteredInventory = inventory.filter(item => sourceCategories.includes(item.service_category));
+    } else {
+      // If no source categories are defined for the current serviceCategory,
+      // it means this stage consumes raw materials, so no intermediate inventory is available.
+      filteredInventory = [];
+    }
+
+    const groupedInventory: { [key: string]: { [key: string]: number } } = {};
+
+    filteredInventory.forEach(item => {
+      if (item.product && item.product.product_type && item.product.animal_type) {
+        const productType = item.product.product_type;
+        const animalType = item.product.animal_type;
+
+        if (!groupedInventory[productType]) {
+          groupedInventory[productType] = {};
+        }
+        if (!groupedInventory[productType][animalType]) {
+          groupedInventory[productType][animalType] = 0;
+        }
+        groupedInventory[productType][animalType] += item.quantity;
+      }
+    });
+    return groupedInventory;
+  }, [inventory, serviceCategory]);
 
   // --- CACHING LOGIC ---
   const CACHE_KEY = "create-job-cache";
@@ -180,6 +222,16 @@ export default function CreateJobPage() {
     console.log("Price loading:", priceLoading);
     console.log("Price error:", priceError);
   }, [currentItem, serviceCategory, shouldFetchPrice, productPrice, priceLoading, priceError]);
+
+  // Debug logging for inventory display
+  useEffect(() => {
+    console.log("Inventory Loading:", inventoryLoading);
+    console.log("Inventory Error:", inventoryError);
+    console.log("Current Item Product Type:", currentItem.productType);
+    console.log("Current Item Animal Type:", currentItem.animalType);
+    console.log("Available Inventory (processed):", availableInventory);
+    console.log("Product Price Unit of Measure:", productPrice?.unit_of_measure);
+  }, [inventoryLoading, inventoryError, currentItem.productType, currentItem.animalType, availableInventory, productPrice?.unit_of_measure]);
 
   const addJobItem = () => {
     console.log("Add item button clicked");
@@ -613,6 +665,36 @@ export default function CreateJobPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                {/* Inventory Availability Display */}
+                <div className="md:col-span-2">
+                  {inventoryLoading ? (
+                    <Skeleton className="h-6 w-full" />
+                  ) : inventoryError ? (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Inventory Error</AlertTitle>
+                      <AlertDescription>Could not load inventory data.</AlertDescription>
+                    </Alert>
+                  ) : (
+                    currentItem.productType && currentItem.animalType && (
+                      <div className="p-2 bg-muted rounded-lg text-sm">
+                        <p className="font-medium">Available Inventory:</p>
+                        <p className="text-muted-foreground">
+                          {(() => {
+                            const totalAvailable = availableInventory[currentItem.productType]?.[currentItem.animalType] || 0;
+                            if (productPrice?.unit_of_measure === 'PAIRS') {
+                              const pairs = Math.floor(totalAvailable / 2);
+                              const singles = totalAvailable % 2;
+                              return `${pairs} pairs, ${singles} singles (${totalAvailable} individual items)`;
+                            } else {
+                              return `${totalAvailable} items`;
+                            }
+                          })()}
+                        </p>
+                      </div>
+                    )
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="quantity">Quantity *</Label>

@@ -72,6 +72,7 @@ export interface Product {
   base_price: number
   is_active: boolean
   last_price_update: string
+  unit_of_measure?: string
 }
 
 export interface Artisan {
@@ -189,6 +190,7 @@ export interface HierarchicalRate {
   animal: string;
   rates: {
     size: string;
+    Drawing?: number;
     Carving?: number;
     Sanding?: number;
     Painting?: number;

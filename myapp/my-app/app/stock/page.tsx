@@ -18,6 +18,7 @@ interface EnrichedFinishedStockItem extends FinishedStockItem {
     size_category: string;
     base_price: number;
     reorder_level: number;
+    unit_of_measure: string; // Added this field
   };
 }
 
@@ -237,7 +238,15 @@ export default function FinishedStockPage() {
                     <TableCell>{item.product.animal_type ?? ''}</TableCell>
                     <TableCell>{(item.product.size_category ?? '').replace(/_/g, " ")}</TableCell>
                     <TableCell className="text-right font-medium">
-                      {item.quantity}
+                      {item.product.unit_of_measure === 'PAIRS' ? 
+                        (() => {
+                          const pairs = Math.floor(item.quantity / 2);
+                          const singles = item.quantity % 2;
+                          return `${pairs} pairs, ${singles} singles (${item.quantity} individual items)`;
+                        })()
+                        : 
+                        <>{item.quantity} items</>
+                      }
                       {item.quantity <= item.product.reorder_level && item.quantity > 0 && (
                         <span className="text-yellow-600 ml-1">⚠</span>
                       )}

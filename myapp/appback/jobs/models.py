@@ -77,14 +77,21 @@ class JobItem(models.Model):
 
         try:
             service_rate = ServiceRate.objects.get(product=self.product, service_category=self.job.service_category)
-            # Adjust quantity_accepted based on unit_of_measure for payment calculation
-            quantity_for_payment = self.quantity_accepted
-            if self.product.unit_of_measure == 'PAIRS':
-                quantity_for_payment = self.quantity_accepted / 2 # Divide by 2 for pairs
-
-            # Convert quantity_for_payment to Decimal before multiplication
+            # Calculate final_payment based on the new logic for individual items
             from decimal import Decimal # Import Decimal
-            self.final_payment = service_rate.rate_per_unit * Decimal(str(quantity_for_payment))
+
+            if self.product.unit_of_measure == 'PAIRS':
+                rate_per_pair = service_rate.rate_per_unit
+                rate_per_single = rate_per_pair / Decimal('2')
+
+                complete_pairs = self.quantity_accepted // 2
+                single_items = self.quantity_accepted % 2
+
+                payment = (Decimal(str(complete_pairs)) * rate_per_pair) + \
+                          (Decimal(str(single_items)) * rate_per_single)
+                self.final_payment = payment
+            else:  # ITEMS
+                self.final_payment = service_rate.rate_per_unit * Decimal(str(self.quantity_accepted))
         except ObjectDoesNotExist:
             # Handle case where no rate is defined for this product and service category
             self.final_payment = 0.00 # Default to 0 if no rate found
@@ -120,6 +127,15 @@ class JobDelivery(models.Model):
         # Update Inventory - import here to avoid circular imports
         from inventory.models import Inventory, FinishedStock
         
+        if self.quantity_accepted > 0:
+            JobTransaction.objects.create(
+                job=job_item.job,
+                product=job_item.product,
+                from_stage=job_item.job.service_category,
+                to_stage=job_item.job.service_category, # Or the next stage if you have that defined
+                quantity=self.quantity_accepted
+            )
+
         if job_item.job.service_category == 'FINISHED':
             finished_stock, created = FinishedStock.objects.get_or_create(
                 product=job_item.product,
@@ -150,6 +166,7 @@ class JobDelivery(models.Model):
 class ServiceRate(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='job_service_rates') # Link to specific product
     SERVICE_CATEGORY_CHOICES = [
+        ('DRAWING', 'Drawing'),
         ('CARVING', 'Carving'),
         ('CUTTING', 'Cutting'),
         ('PAINTING', 'Painting'),
@@ -167,3 +184,20 @@ class ServiceRate(models.Model):
 
     def __str__(self):
         return f"{self.product.product_type} - {self.product.animal_type} ({self.service_category}) Rate: Ksh{self.rate_per_unit}/unit"
+
+class JobTransaction(models.Model):
+    job = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, related_name='transactions')
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name='job_transactions')
+    from_stage = models.CharField(max_length=50, choices=Product.SERVICE_CATEGORIES)
+    to_stage = models.CharField(max_length=50, choices=Product.SERVICE_CATEGORIES)
+    quantity = models.PositiveIntegerField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = "Job Transaction"
+        verbose_name_plural = "Job Transactions"
+
+    def __str__(self):
+        job_id_str = f"Job #{self.job.job_id}" if self.job else "No Job"
+        return f"{job_id_str}: {self.quantity} x {self.product} from {self.from_stage} to {self.to_stage}"

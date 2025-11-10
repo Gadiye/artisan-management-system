@@ -40,6 +40,7 @@ class Product(models.Model):
     ]
     
     SERVICE_CATEGORIES = [
+        ('DRAWING', 'Drawing'),
         ('CARVING', 'Carving'),
         ('CUTTING', 'Cutting'),
         ('PAINTING', 'Painting'),

@@ -23,6 +23,9 @@ from .serializers import (
     ProductLiteSerializer # Used by PriceHistoryListSerializer
 )
 from .filters import ProductFilter, PriceHistoryFilter # Import both filters
+from jobs.models import JobTransaction
+from jobs.serializers import JobTransactionSerializer
+
 
 
 class ProductPagination(PageNumberPagination):
@@ -67,7 +70,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         GET operations are read-only for all.
         POST, PUT, PATCH, DELETE are restricted to IsAdminUser.
         """
-        if self.action in ['list', 'retrieve', 'get_product_price_history', 'product_metadata', 'missing_service_rates']:
+        if self.action in ['list', 'retrieve', 'get_product_price_history', 'product_metadata', 'missing_service_rates', 'transactions']:
             permission_classes = [IsAuthenticatedOrReadOnly]
         else: # create, update, partial_update, destroy
             permission_classes = [IsAuthenticated, IsAdminUser]
@@ -253,6 +256,23 @@ class ProductViewSet(viewsets.ModelViewSet):
             return self.get_paginated_response(serializer.data)
 
         serializer = self.get_serializer(products_without_rates, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='transactions')
+    def transactions(self, request, pk=None):
+        """
+        GET /api/products/{product_id}/transactions/
+        Retrieve transaction history for a specific product.
+        """
+        product = self.get_object()
+        queryset = JobTransaction.objects.filter(product=product).order_by('-timestamp')
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = JobTransactionSerializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+
+        serializer = JobTransactionSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data)
 
 
