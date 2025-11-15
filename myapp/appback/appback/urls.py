@@ -32,8 +32,7 @@ def api_root(request):
             "jobs": "/api/jobs/",
             "inventory": "/api/inventory/",
             "orders": "/api/orders/",
-            "payslips": "/api/payslips/",
-            "service-rates": "/api/service-rates/",
+            "financials": "/api/financials/",
         }
     })
 
@@ -46,7 +45,7 @@ urlpatterns = [
     path('api/jobs/', include('jobs.urls')),
     path('api/inventory/', include('inventory.urls')),
     path('api/orders/', include('orders.urls')),
-    path('api/payslips/', include('payslips.urls')),
+    path('api/financials/', include('financials.urls')),
     
     path('api/', include(standalone_router.urls)),
 ]

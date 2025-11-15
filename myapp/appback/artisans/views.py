@@ -14,7 +14,7 @@ from django.db.models.functions import Coalesce
 from decimal import Decimal
 
 from jobs.models import JobItem, Job
-from payslips.models import Payslip
+from financials.models import Payslip
 from .models import Artisan
 from .serializers import (
     ArtisanListSerializer, 
@@ -299,7 +299,7 @@ class ArtisanViewSet(viewsets.ModelViewSet):
         )
 
         job_ids = [item['job'] for item in pending_job_items]
-        jobs = Job.objects.filter(job_id__in=job_ids)
+        jobs = Job.objects.filter(job_id__in=job_ids).prefetch_related('items')
 
         # Create a dictionary to map job_id to pending_payment
         pending_payments_map = {item['job']: item['pending_payment'] for item in pending_job_items}
@@ -310,3 +310,4 @@ class ArtisanViewSet(viewsets.ModelViewSet):
 
         serializer = JobWithPendingPaymentSerializer(jobs, many=True)
         return Response(serializer.data)
+

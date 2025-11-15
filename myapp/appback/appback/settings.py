@@ -36,7 +36,7 @@ INSTALLED_APPS = [
     'jobs',
     'inventory',
     'orders',
-    'payslips',
+    'financials',
     'data_entry',
 ]
 

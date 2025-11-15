@@ -5,7 +5,7 @@ import re
 
 from .models import Artisan
 from jobs.models import JobItem, Job
-from payslips.models import Payslip
+from financials.models import Payslip
 
 
 class ArtisanWithPendingPaymentSerializer(serializers.ModelSerializer):
@@ -16,12 +16,26 @@ class ArtisanWithPendingPaymentSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'pending_payment_total']
 
 
+class JobItemForPendingPaymentSerializer(serializers.ModelSerializer):
+    product = serializers.SerializerMethodField()
+
+    class Meta:
+        model = JobItem
+        fields = ['id', 'product', 'quantity_accepted', 'final_payment']
+
+    def get_product(self, obj):
+        return {
+            'product_type': obj.product.product_type,
+            'animal_type': obj.product.animal_type,
+        }
+
 class JobWithPendingPaymentSerializer(serializers.ModelSerializer):
     pending_payment = serializers.DecimalField(max_digits=10, decimal_places=2)
+    items = JobItemForPendingPaymentSerializer(many=True, read_only=True)
 
     class Meta:
         model = Job
-        fields = ['job_id', 'created_date', 'status', 'service_category', 'pending_payment']
+        fields = ['job_id', 'created_date', 'status', 'service_category', 'pending_payment', 'items']
 
 
 class ArtisanListSerializer(serializers.ModelSerializer):

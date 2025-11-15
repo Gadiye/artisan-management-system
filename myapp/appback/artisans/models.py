@@ -34,7 +34,7 @@ class Artisan(models.Model):
     @property
     def total_earnings_computed(self):
         """Get total earnings from payslips"""
-        from payslips.models import Payslip
+        from financials.models import Payslip
         return float(Payslip.objects.filter(artisan=self).aggregate(
             models.Sum('total_payment')
         )['total_payment__sum'] or 0)
@@ -72,20 +72,4 @@ class Artisan(models.Model):
         return last_job.job.created_date if last_job else None
 
 
-# You might also want to add a Rating model for job ratings
-class JobRating(models.Model):
-    job_item = models.OneToOneField(
-        'jobs.JobItem',
-        on_delete=models.CASCADE,
-        related_name='rating_detail'
-    )
-    rating = models.DecimalField(
-        max_digits=2,
-        decimal_places=1,
-        validators=[MinValueValidator(1.0), MaxValueValidator(5.0)]
-    )
-    comment = models.TextField(blank=True)
-    created_date = models.DateTimeField(auto_now_add=True)
-    
-    def __str__(self):
-        return f"Rating {self.rating} for {self.job_item}"
+

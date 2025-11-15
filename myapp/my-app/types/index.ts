@@ -125,8 +125,10 @@ export interface Payslip {
   generated_date: string
   pdf_file: string
   total_payment: number
+  total_advances_deducted: number
   period_start: string
   period_end: string
+  advance_deductions?: AdvanceDeduction[];
 }
 
 export interface FinishedStock {
@@ -197,4 +199,22 @@ export interface HierarchicalRate {
     Cutting?: number;
     Finishing?: number;
   }[];
+}
+
+export interface ArtisanAdvance {
+  id: number;
+  artisan: number;
+  amount: number;
+  date_given: string;
+  reason?: string;
+  is_settled: boolean;
+  balance: number;
+}
+
+export interface AdvanceDeduction {
+  id: number;
+  advance: number;
+  payslip: number | null;
+  amount: number;
+  date_deducted: string;
 }

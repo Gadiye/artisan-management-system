@@ -99,13 +99,14 @@ export interface OrderItem {
 
 export interface Payslip {
   id: number
-  artisan: number
+  artisan: { id: number; name: string }
   service_category?: string
   generated_date: string
-  pdf_file: string
-  total_payment: number
+  spreadsheet_file: string
+  total_payment: string
   period_start: string
   period_end: string
+  total_advances_deducted: string
 }
 
 export interface FinishedStock {
@@ -156,7 +157,7 @@ export interface CreateDeliveryPayload {
 }
 
 // Generic API functions
-export async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+export async function apiRequest<T>(endpoint: string, options: RequestInit & { responseType?: 'json' | 'blob' | 'text' } = {}): Promise<T> {
   // Ensure API_BASE_URL does not end with a slash
   const baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
   // Ensure endpoint starts with a slash
@@ -215,6 +216,14 @@ export async function apiRequest<T>(endpoint: string, options: RequestInit = {})
       return null as T; // Return null for void type
     }
 
+    // Handle different response types
+    if (options.responseType === 'blob') {
+      return response.blob() as Promise<T>;
+    }
+    if (options.responseType === 'text') {
+      return response.text() as Promise<T>;
+    }
+    // Default to JSON
     return await response.json()
   } catch (error) {
     console.error("API request failed:", error)
@@ -287,6 +296,7 @@ export const api = {
       apiRequest<void>(`/artisans/${id}/`, {
         method: "DELETE",
       }),
+
   },
 
   // Customers
@@ -404,29 +414,88 @@ export const api = {
       }),
   },
 
-  // Payslips
-  payslips: {
-    list: (params?: URLSearchParams) => apiRequest<Payslip[]>(`/payslips/?${params?.toString() || ''}`),
-    get: (id: number) => apiRequest<Payslip>(`/payslips/${id}/`),
-    generate: (data: {
-      artisan_id?: number
-      service_category?: string
-      period_start: string
-      period_end: string
-    }) =>
-      apiRequest<Payslip | Payslip[]>("/payslips/generate/", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
-    download: (id: number) =>
-      apiRequest<Blob>(`/payslips/${id}/download/`, {
-        headers: {},
-      }),
-    delete: (id: number) =>
-      apiRequest<void>(`/payslips/${id}/`, {
-        method: "DELETE",
-      }),
+  // Financials (Payslips, Advances, Service Rates)
+  financials: {
+    payslips: {
+      list: (params?: URLSearchParams) => apiRequest<Payslip[]>(`/financials/payslips/?${params?.toString() || ''}`),
+      get: (id: number) => apiRequest<Payslip>(`/financials/payslips/${id}/`),
+      generate: (data: {
+        artisan_id?: number
+        service_category?: string
+        period_start: string
+        period_end: string
+      }) =>
+        apiRequest<Payslip | Payslip[]>("/financials/payslips/generate/", {
+          method: "POST",
+          body: JSON.stringify(data),
+        }),
+      downloadSpreadsheet: (id: number) =>
+        apiRequest<Blob>(`/financials/payslips/${id}/download_spreadsheet/`, {
+          headers: {},
+          responseType: 'blob',
+        }),
+      delete: (id: number) =>
+        apiRequest<void>(`/financials/payslips/${id}/`, {
+          method: "DELETE",
+        }),
+    },
+    advances: {
+      list: (params?: URLSearchParams) => apiRequest<PaginatedResponse<ArtisanAdvance>>(`/financials/advances/?${params?.toString() || ''}`).then(res => res.results),
+      get: (id: number) => apiRequest<ArtisanAdvance>(`/financials/advances/${id}/`),
+      create: (data: Partial<ArtisanAdvance>) =>
+        apiRequest<ArtisanAdvance>("/financials/advances/", {
+          method: "POST",
+          body: JSON.stringify(data),
+        }),
+      update: (id: number, data: Partial<ArtisanAdvance>) =>
+        apiRequest<ArtisanAdvance>(`/financials/advances/${id}/`, {
+          method: "PUT",
+          body: JSON.stringify(data),
+        }),
+      delete: (id: number) =>
+        apiRequest<void>(`/financials/advances/${id}/`, {
+          method: "DELETE",
+        }),
+      deduct: (id: number, amount: number, payslip_id?: number) =>
+        apiRequest<ArtisanAdvance>(`/financials/advances/${id}/deduct/`, {
+          method: "POST",
+          body: JSON.stringify({ amount, payslip_id }),
+        }),
+      deductions: {
+        list: (params?: URLSearchParams) => apiRequest<PaginatedResponse<AdvanceDeduction>>(`/financials/advance-deductions/?${params?.toString() || ''}`).then(res => res.results),
+        get: (id: number) => apiRequest<AdvanceDeduction>(`/financials/advance-deductions/${id}/`),
+        create: (data: Partial<AdvanceDeduction>) =>
+          apiRequest<AdvanceDeduction>("/financials/advance-deductions/", {
+            method: "POST",
+            body: JSON.stringify(data),
+          }),
+        delete: (id: number) =>
+          apiRequest<void>(`/financials/advance-deductions/${id}/`, {
+            method: "DELETE",
+          }),
+      },
+    },
+    serviceRates: {
+      list: (params?: URLSearchParams) => apiRequest<PaginatedResponse<ServiceRate>>(`/financials/service-rates/?${params?.toString() || ''}`),
+      get: (id: number) => apiRequest<ServiceRate>(`/financials/service-rates/${id}/`),
+      create: (data: Partial<ServiceRate>) =>
+        apiRequest<ServiceRate>("/financials/service-rates/", {
+          method: "POST",
+          body: JSON.stringify(data),
+        }),
+      update: (id: number, data: Partial<ServiceRate>) =>
+        apiRequest<ServiceRate>(`/financials/service-rates/${id}/`, {
+          method: "PUT",
+          body: JSON.stringify(data),
+        }),
+      delete: (id: number) =>
+        apiRequest<void>(`/financials/service-rates/${id}/`, {
+          method: "DELETE",
+        }),
+    },
   },
+
+
 
   // Finished Stock
   finishedStock: {
@@ -514,25 +583,7 @@ export const api = {
     },
   },
 
-  // Service Rates
-  serviceRates: {
-    list: (params?: URLSearchParams) => apiRequest<PaginatedResponse<ServiceRate>>(`/service-rates/?${params?.toString() || ''}`),
-    get: (id: number) => apiRequest<ServiceRate>(`/service-rates/${id}/`),
-    create: (data: Partial<ServiceRate>) =>
-      apiRequest<ServiceRate>("/service-rates/", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
-    update: (id: number, data: Partial<ServiceRate>) =>
-      apiRequest<ServiceRate>(`/service-rates/${id}/`, {
-        method: "PUT",
-        body: JSON.stringify(data),
-      }),
-    delete: (id: number) =>
-      apiRequest<void>(`/service-rates/${id}/`, {
-        method: "DELETE",
-      }),
-  },
+
 
   // Inventory (non-finished stock)
   inventory: {
