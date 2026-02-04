@@ -3,6 +3,7 @@ services:
   - type: web
     name: kichaka-poa-backend
     env: python
+    rootDir: myapp/appback
     buildCommand: ./render_build.sh
     startCommand: gunicorn appback.wsgi:application
     envVars:
@@ -20,6 +21,7 @@ services:
   - type: web
     name: kichaka-poa-frontend
     env: node
+    rootDir: myapp/my-app
     buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
