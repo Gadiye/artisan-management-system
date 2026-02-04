@@ -55,7 +55,7 @@ export function Navigation() {
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2 text-sm font-medium text-muted-foreground">
                 <User className="h-4 w-4" />
-                <span>{session.user?.name || (session.user as any)?.username}</span>
+                <span>{session.user?.name || session.user?.username}</span>
               </div>
               <Button
                 variant="ghost"
