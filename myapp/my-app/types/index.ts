@@ -54,6 +54,7 @@ export interface JobListEntry {
 
 export interface Job extends JobListEntry {
   items: JobItem[];
+  pending_payment?: number | string;
 }
 
 export interface PaginatedResponse<T> {
@@ -72,6 +73,7 @@ export interface Product {
   base_price: number
   is_active: boolean
   last_price_update: string
+  reorder_level?: number
   unit_of_measure?: string
 }
 
@@ -83,6 +85,7 @@ export interface Artisan {
   created_date: string
   total_earnings?: number
   pending_payment?: number
+  pending_payment_total?: number | string // Added to support usage in payslips page
   average_rating?: number
   total_jobs?: number
   specialties?: string[]
@@ -97,6 +100,9 @@ export interface Customer {
   address?: string
   created_date: string
   is_active: boolean
+  total_orders?: number
+  total_spent?: number
+  last_order_date?: string | null
 }
 
 export interface Order {
@@ -120,10 +126,11 @@ export interface OrderItem {
 
 export interface Payslip {
   id: number
-  artisan: number
+  artisan: { id: number; name: string }
   service_category?: string
   generated_date: string
   pdf_file: string
+  spreadsheet_file?: string // Added missing field
   total_payment: number
   total_advances_deducted: number
   period_start: string
@@ -133,7 +140,7 @@ export interface Payslip {
 
 export interface FinishedStock {
   id: number
-  product: number
+  product: number | Product
   quantity: number
   average_cost: number
   last_updated: string
@@ -217,4 +224,13 @@ export interface AdvanceDeduction {
   payslip: number | null;
   amount: number;
   date_deducted: string;
+}
+
+export interface InventoryItem {
+  id: number;
+  product: Product;
+  quantity: number;
+  average_cost: number;
+  last_updated: string;
+  service_category?: string;
 }

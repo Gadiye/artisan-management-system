@@ -14,15 +14,16 @@ import { useHierarchicalServiceRates, useProductsWithoutServiceRates } from '@/h
 import { useApi } from "@/hooks/useApi";
 import React, { useState, useMemo } from "react"
 import { Search } from 'lucide-react';
+import { HierarchicalRate } from '@/types';
 
 const serviceCategories = ["Carving", "Sanding", "Painting", "Cutting", "Finishing"];
 
-const AddServiceRateDialog = ({ refetchRates }) => {
+const AddServiceRateDialog = ({ refetchRates }: { refetchRates: () => void }) => {
   const { data: products } = useProductsWithoutServiceRates();
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [ratePerUnit, setRatePerUnit] = useState("");
   const { post } = useApi("/service-rates/");
 
@@ -35,14 +36,14 @@ const AddServiceRateDialog = ({ refetchRates }) => {
 
   const selectedProductData = useMemo(() => {
     if (!selectedProduct || !products) return null;
-    return products.find(p => p.id === selectedProduct);
+    return products.find(p => p.id === Number(selectedProduct));
   }, [selectedProduct, products]);
 
   const handleSave = async () => {
     if (!selectedProduct || !selectedCategory || !ratePerUnit) return;
 
     const payload = {
-      product: selectedProduct,
+      product: Number(selectedProduct),
       service_category: selectedCategory,
       rate_per_unit: ratePerUnit
     };
@@ -83,14 +84,14 @@ const AddServiceRateDialog = ({ refetchRates }) => {
             </div>
 
             {/* Product Selection */}
-            <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+            <Select value={selectedProduct || ""} onValueChange={setSelectedProduct}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a product" />
               </SelectTrigger>
               <SelectContent>
                 {filteredProducts.length > 0 ? (
                   filteredProducts.map((product) => (
-                    <SelectItem key={product.id} value={product.id}>
+                    <SelectItem key={product.id} value={product.id.toString()}>
                       <div className="flex flex-col items-start">
                         <span className="font-medium">{product.product_type}</span>
                         <span className="text-xs text-muted-foreground">
@@ -130,7 +131,7 @@ const AddServiceRateDialog = ({ refetchRates }) => {
               <div className="flex-1 border-b border-dashed border-muted-foreground/30"></div>
             </div>
 
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <Select value={selectedCategory || ""} onValueChange={setSelectedCategory}>
               <SelectTrigger>
                 <SelectValue placeholder="Select service category" />
               </SelectTrigger>
@@ -182,7 +183,7 @@ const AddServiceRateDialog = ({ refetchRates }) => {
   )
 };
 
-const ServiceRatesTable = ({ filteredRates }) => {
+const ServiceRatesTable = ({ filteredRates }: { filteredRates: HierarchicalRate[] }) => {
   return (
     <Card>
       <CardHeader>
@@ -232,7 +233,7 @@ const ServiceRatesTable = ({ filteredRates }) => {
                             <TableCell className="w-24 border-r">{rate.size}</TableCell>
                             {serviceCategories.map((category) => (
                               <TableCell key={category} className="w-32 border-r">
-                                {rate[category] ? Number.parseFloat(rate[category]).toFixed(2) : "-"}
+                                {(rate as Record<string, number | string | undefined>)[category] ? Number.parseFloat((rate as Record<string, number | string | undefined>)[category] as string).toFixed(2) : "-"}
                               </TableCell>
                             ))}
                           </TableRow>

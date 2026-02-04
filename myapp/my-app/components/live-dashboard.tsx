@@ -7,7 +7,7 @@ import useSWR from 'swr';
 
 const fetcher = (url: string) => {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL;
-  const fullUrl = `${baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`}${url}`;
+  const fullUrl = `${(baseUrl || '').endsWith('/') ? baseUrl : `${baseUrl}/`}${url}`;
   return fetch(fullUrl).then(res => res.json());
 };
 
@@ -18,10 +18,10 @@ export default function LiveDashboard() {
   const { data: payslipsData } = useSWR('payslips/', fetcher);
 
   interface PayslipData {
-  total_payment: string;
-}
+    total_payment: string;
+  }
 
-const pendingPayments = payslipsData?.results?.reduce((sum: number, payslip: PayslipData) => sum + parseFloat(payslip.total_payment), 0) ?? '...';
+  const pendingPayments = payslipsData?.results?.reduce((sum: number, payslip: PayslipData) => sum + parseFloat(payslip.total_payment), 0) ?? '...';
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

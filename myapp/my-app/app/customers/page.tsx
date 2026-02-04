@@ -72,7 +72,7 @@ export default function CustomersPage() {
             {safeError instanceof Error ? safeError.message : "An unknown error occurred."}
           </AlertDescription>
         </Alert>
-        <Button onClick={refetch} className="mt-4">Retry</Button>
+        <Button onClick={() => refetch()} className="mt-4">Retry</Button>
       </div>
     );
   }

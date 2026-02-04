@@ -6,11 +6,9 @@ import { api } from '../lib/api'
 import { PriceHistory } from '../lib/api/types'
 
 export function usePriceHistory(productId?: number, params?: URLSearchParams) {
-  return useApi<PriceHistory[]>(
-    () =>
-      productId
-        ? api.products.getPriceHistory(productId, params)
-        : api.priceHistory.list(params),
-    [productId, params?.toString()]
-  )
+  const endpoint = productId
+    ? `/products/${productId}/price-history/${params ? `?${params.toString()}` : ''}`
+    : `/price-history/${params ? `?${params.toString()}` : ''}`;
+
+  return useApi<PriceHistory[]>(endpoint);
 }

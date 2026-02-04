@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -78,27 +78,29 @@ export default function AdvancesPage() {
   const [selectedArtisanFilter, setSelectedArtisanFilter] = useState("all");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState("all");
 
-  // Fetch advances
-  useEffect(() => {
-    const fetchAdvances = async () => {
-      setLoadingAdvances(true);
-      setErrorAdvances(null);
-      try {
-        const response = await api.financials.advances.list();
-        setAdvances(response);
-      } catch (err: any) {
-        setErrorAdvances(err.message || "Failed to fetch advances.");
-        toast({
-          title: "Error",
-          description: err.message || "Failed to fetch advances.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoadingAdvances(false);
-      }
-    };
-    fetchAdvances();
+  // Fetch advances function
+  const fetchAdvances = useCallback(async () => {
+    setLoadingAdvances(true);
+    setErrorAdvances(null);
+    try {
+      const response = await api.financials.advances.list();
+      setAdvances(response);
+    } catch (err: unknown) {
+      setErrorAdvances((err as Error).message || "Failed to fetch advances.");
+      toast({
+        title: "Error",
+        description: (err as Error).message || "Failed to fetch advances.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingAdvances(false);
+    }
   }, [toast]);
+
+  // Fetch advances on mount
+  useEffect(() => {
+    fetchAdvances();
+  }, [fetchAdvances]);
 
   const handleCreateAdvance = async () => {
     if (!newAdvanceData.artisan || newAdvanceData.amount <= 0) {
@@ -110,18 +112,19 @@ export default function AdvancesPage() {
     setCreateAdvanceError(null);
     try {
       const createdAdvance = await api.financials.advances.create(newAdvanceData);
-      setAdvances((prev) => [createdAdvance, ...prev]);
+      // Refresh list to ensure consistency
+      await fetchAdvances();
       toast({
         title: "Success",
         description: `Advance of Ksh${createdAdvance.amount} created for ${artisans?.find(a => a.id === createdAdvance.artisan)?.name}.`,
       });
       setIsCreateDialogOpen(false);
       setNewAdvanceData({ artisan: 0, amount: 0, reason: "" });
-    } catch (err: any) {
-      setCreateAdvanceError(err.message || "Failed to create advance.");
+    } catch (err: unknown) {
+      setCreateAdvanceError((err as Error).message || "Failed to create advance.");
       toast({
         title: "Error",
-        description: err.message || "Failed to create advance.",
+        description: (err as Error).message || "Failed to create advance.",
         variant: "destructive",
       });
     } finally {
@@ -131,13 +134,13 @@ export default function AdvancesPage() {
 
   const handleOpenDeductDialog = (advance: ArtisanAdvance) => {
     setSelectedAdvanceToDeduct(advance);
-    setDeductionAmount(parseFloat(advance.balance as any) || 0); // Default to full balance, or 0 if NaN
+    setDeductionAmount(Number(advance.balance) || 0); // Default to full balance, or 0 if NaN
     setDeductError(null);
     setIsDeductDialogOpen(true);
   };
 
   const handleDeductAdvance = async () => {
-    if (!selectedAdvanceToDeduct || deductionAmount <= 0 || deductionAmount > parseFloat(selectedAdvanceToDeduct.balance as any)) {
+    if (!selectedAdvanceToDeduct || deductionAmount <= 0 || deductionAmount > Number(selectedAdvanceToDeduct.balance)) {
       setDeductError("Please enter a valid deduction amount, not exceeding the outstanding balance.");
       return;
     }
@@ -145,22 +148,21 @@ export default function AdvancesPage() {
     setIsDeducting(true);
     setDeductError(null);
     try {
-      const updatedAdvance = await api.financials.advances.deduct(selectedAdvanceToDeduct.id, deductionAmount);
-      setAdvances((prev) =>
-        prev.map((adv) => (adv.id === updatedAdvance.id ? updatedAdvance : adv))
-      );
+      await api.financials.advances.deduct(selectedAdvanceToDeduct.id, deductionAmount);
+      // Refresh list to ensure consistency and correct balances
+      await fetchAdvances();
       toast({
         title: "Success",
-        description: `Ksh${deductionAmount} deducted from advance for ${artisans?.find(a => a.id === updatedAdvance.artisan)?.name}.`,
+        description: `Ksh${deductionAmount} deducted from advance for ${artisans?.find(a => a.id === selectedAdvanceToDeduct.artisan)?.name}.`,
       });
       setIsDeductDialogOpen(false);
       setSelectedAdvanceToDeduct(null);
       setDeductionAmount(0);
-    } catch (err: any) {
-      setDeductError(err.message || "Failed to deduct advance.");
+    } catch (err: unknown) {
+      setDeductError((err as Error).message || "Failed to deduct advance.");
       toast({
         title: "Error",
-        description: err.message || "Failed to deduct advance.",
+        description: (err as Error).message || "Failed to deduct advance.",
         variant: "destructive",
       });
     } finally {
@@ -186,7 +188,10 @@ export default function AdvancesPage() {
   }, [advances, selectedArtisanFilter, selectedStatusFilter]);
 
   const totalOutstandingAdvances = useMemo(() => {
-    return advances.reduce((sum, advance) => sum + (advance.is_settled ? 0 : parseFloat(advance.balance as any)), 0);
+    return advances.reduce((sum, advance) => {
+      const bal = Number(advance.balance);
+      return sum + (advance.is_settled || isNaN(bal) ? 0 : bal);
+    }, 0);
   }, [advances]);
 
   if (loadingAdvances || artisansLoading) {
@@ -258,7 +263,7 @@ export default function AdvancesPage() {
             <CardTitle className="text-sm font-medium">Total Advances</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Ksh{advances.reduce((sum, a) => sum + parseFloat(a.amount as any), 0).toFixed(2)}</div>
+            <div className="text-2xl font-bold">Ksh{advances.reduce((sum, a) => sum + Number(a.amount), 0).toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">{advances.length} records</p>
           </CardContent>
         </Card>
@@ -276,7 +281,7 @@ export default function AdvancesPage() {
             <CardTitle className="text-sm font-medium">Settled Advances</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Ksh{advances.filter(a => a.is_settled).reduce((sum, a) => sum + parseFloat(a.amount as any), 0).toFixed(2)}</div>
+            <div className="text-2xl font-bold">Ksh{advances.filter(a => a.is_settled).reduce((sum, a) => sum + Number(a.amount), 0).toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">{advances.filter(a => a.is_settled).length} records</p>
           </CardContent>
         </Card>
@@ -504,7 +509,7 @@ export default function AdvancesPage() {
                 value={deductionAmount}
                 onChange={(e) => setDeductionAmount(parseFloat(e.target.value) || 0)}
                 className="col-span-3"
-                max={selectedAdvanceToDeduct ? parseFloat(selectedAdvanceToDeduct.balance as any) : 0}
+                max={selectedAdvanceToDeduct ? Number(selectedAdvanceToDeduct.balance) : 0}
                 min={0.01}
               />
             </div>
@@ -513,14 +518,14 @@ export default function AdvancesPage() {
                 Outstanding Balance
               </Label>
               <div className="col-span-3 text-left font-medium">
-                Ksh{selectedAdvanceToDeduct ? parseFloat(selectedAdvanceToDeduct.balance as any).toFixed(2) : "0.00"}
+                Ksh{selectedAdvanceToDeduct ? Number(selectedAdvanceToDeduct.balance).toFixed(2) : "0.00"}
               </div>
             </div>
           </div>
           <DialogFooter>
             <Button
               onClick={handleDeductAdvance}
-              disabled={isDeducting || deductionAmount <= 0 || deductionAmount > (selectedAdvanceToDeduct ? parseFloat(selectedAdvanceToDeduct.balance as any) : 0)}
+              disabled={isDeducting || deductionAmount <= 0 || deductionAmount > (selectedAdvanceToDeduct ? Number(selectedAdvanceToDeduct.balance) : 0)}
             >
               {isDeducting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Deduct Amount

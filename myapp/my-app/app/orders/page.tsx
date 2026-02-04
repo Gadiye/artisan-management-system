@@ -86,20 +86,20 @@ export default function OrdersPage() {
   }
 
   if (error) {
-  const safeError = error as unknown;
+    const safeError = error as unknown;
 
-  return (
-    <div className="container mx-auto p-6">
-      <Alert variant="destructive">
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>
-          {safeError instanceof Error ? safeError.message : "An unknown error occurred."}
-        </AlertDescription>
-      </Alert>
-      <Button onClick={refetch} className="mt-4">Retry</Button>
-    </div>
-  );
-}
+    return (
+      <div className="container mx-auto p-6">
+        <Alert variant="destructive">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>
+            {safeError instanceof Error ? safeError.message : "An unknown error occurred."}
+          </AlertDescription>
+        </Alert>
+        <Button onClick={() => refetch()} className="mt-4">Retry</Button>
+      </div>
+    );
+  }
 
 
   return (

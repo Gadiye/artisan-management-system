@@ -14,6 +14,7 @@ import { useCustomers, useFinishedStock } from '@/hooks/useResource';
 import { api, OrderItem as ApiOrderItem, Order as ApiOrder } from '@/lib/api';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Product } from "@/types";
 
 interface OrderItemDisplay {
   id: string; // Client-side unique ID
@@ -42,9 +43,14 @@ export default function CreateOrderPage() {
   const safeCustomers = customers || [];
   const safeFinishedStock = finishedStock || [];
 
+  // Filter for stock items where product information is fully loaded (is an object)
+  const validStock = safeFinishedStock.filter((item): item is typeof item & { product: Product } =>
+    typeof item.product === 'object' && item.product !== null
+  );
+
   const addOrderItem = () => {
     if (currentItem.productId) {
-      const product = safeFinishedStock.find((p) => p.product.id.toString() === currentItem.productId)
+      const product = validStock.find((p) => p.product.id.toString() === currentItem.productId)
       if (product && currentItem.quantity <= product.quantity) {
         const newItem: OrderItemDisplay = {
           id: Date.now().toString(),
@@ -104,7 +110,7 @@ export default function CreateOrderPage() {
   }
 
   const selectedProduct = currentItem.productId
-    ? safeFinishedStock.find((p) => p.product.id.toString() === currentItem.productId)
+    ? validStock.find((p) => p.product.id.toString() === currentItem.productId)
     : null
 
   if (customersLoading || finishedStockLoading) {
@@ -210,7 +216,7 @@ export default function CreateOrderPage() {
                       <SelectValue placeholder="Select product" />
                     </SelectTrigger>
                     <SelectContent>
-                      {safeFinishedStock.map((stockItem) => (
+                      {validStock.map((stockItem) => (
                         <SelectItem key={stockItem.id} value={stockItem.product.id.toString()}>
                           {stockItem.product.product_type.replace(/_/g, " ")} - {stockItem.product.animal_type} ({stockItem.product.size_category.replace(/_/g, " ")}) - $
                           {stockItem.product.base_price} (Stock: {stockItem.quantity})
@@ -265,24 +271,24 @@ export default function CreateOrderPage() {
               <CardContent>
                 <div className="space-y-3">
                   {orderItems.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline">{item.productType.replace(/_/g, " ")}</Badge>
-                            <Badge variant="secondary">{item.animalType}</Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {item.sizeCategory.replace(/_/g, " ")} • Qty: {item.quantity} • ${item.unitPrice.toFixed(2)} each
-                          </p>
+                    <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline">{item.productType.replace(/_/g, " ")}</Badge>
+                          <Badge variant="secondary">{item.animalType}</Badge>
                         </div>
-                        <div className="text-right mr-4">
-                          <p className="font-medium">${item.subtotal.toFixed(2)}</p>
-                        </div>
-                        <Button variant="ghost" size="sm" onClick={() => removeOrderItem(item.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <p className="text-sm text-muted-foreground">
+                          {item.sizeCategory.replace(/_/g, " ")} • Qty: {item.quantity} • ${item.unitPrice.toFixed(2)} each
+                        </p>
                       </div>
-                    ))}
+                      <div className="text-right mr-4">
+                        <p className="font-medium">${item.subtotal.toFixed(2)}</p>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => removeOrderItem(item.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>

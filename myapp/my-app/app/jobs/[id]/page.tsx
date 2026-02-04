@@ -44,7 +44,7 @@ interface PageProps {
 export default function JobDetailsPage({ params }: PageProps) {
   const { id } = use(params);
   const jobId = parseInt(id);
-  
+
   const { data: job, loading, error, refetch } = useJob(jobId);
 
   if (loading) {
@@ -84,12 +84,12 @@ export default function JobDetailsPage({ params }: PageProps) {
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>
-            {error && typeof error === 'object' && 'message' in error 
-              ? (error as Error).message 
+            {error && typeof error === 'object' && 'message' in error
+              ? (error as Error).message
               : "An unknown error occurred."}
           </AlertDescription>
         </Alert>
-        <Button onClick={refetch} className="mt-4">Retry</Button>
+        <Button onClick={() => refetch()} className="mt-4">Retry</Button>
       </div>
     );
   }
@@ -181,7 +181,7 @@ export default function JobDetailsPage({ params }: PageProps) {
                 <TableRow key={item.id}>
                   <TableCell>
                     <Badge variant="outline">
-                      {typeof item.artisan === 'object' 
+                      {typeof item.artisan === 'object'
                         ? item.artisan?.name || 'Unknown'
                         : item.artisan || 'Unknown'}
                     </Badge>

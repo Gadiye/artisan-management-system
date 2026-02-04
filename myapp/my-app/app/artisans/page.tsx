@@ -36,7 +36,7 @@ export default function ArtisansPage() {
 
   // Calculate statistics based on fetched artisans
   // Ensure 'artisans' is treated as an array for calculations
-  const safeArtisans = artisans?.results || (Array.isArray(artisans) ? artisans : []);
+  const safeArtisans = Array.isArray(artisans) ? artisans : [];
 
   const activeArtisans = safeArtisans.filter((a) => a.is_active).length;
   const totalEarnings = safeArtisans.reduce((sum, a) => sum + (a.total_earnings || 0), 0);
@@ -99,7 +99,7 @@ export default function ArtisansPage() {
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
-        <Button onClick={refetch} className="mt-4">Retry</Button> {/* Add a retry button */}
+        <Button onClick={() => refetch()} className="mt-4">Retry</Button> {/* Add a retry button */}
       </div>
     );
   }
@@ -143,7 +143,7 @@ export default function ArtisansPage() {
                     placeholder="+254712345678"
                   />
                 </div>
-                
+
                 <div className="flex gap-2 pt-4">
                   <Button onClick={handleAddArtisan} disabled={!newArtisan.name || submitting}>
                     {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

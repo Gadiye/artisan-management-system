@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useRouter, useParams } from "next/navigation";
 import { api } from '@/lib/api';
+import { Customer } from "@/types";
 import { User, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -16,12 +17,7 @@ export default function EditCustomerPage() {
   const params = useParams();
   const id = params.id as string;
 
-  const [customer, setCustomer] = useState<{
-    name: string;
-    email: string;
-    phone: string;
-    address: string;
-  } | null>(null);
+  const [customer, setCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -128,7 +124,7 @@ export default function EditCustomerPage() {
             <Input
               id="email"
               type="email"
-              value={customer.email}
+              value={customer.email || ""}
               onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
               placeholder="e.g., john.doe@example.com"
             />
@@ -138,7 +134,7 @@ export default function EditCustomerPage() {
             <Label htmlFor="phone">Phone</Label>
             <Input
               id="phone"
-              value={customer.phone}
+              value={customer.phone || ""}
               onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
               placeholder="e.g., +1 415-555-2671"
             />
@@ -148,7 +144,7 @@ export default function EditCustomerPage() {
             <Label htmlFor="address">Address</Label>
             <Textarea
               id="address"
-              value={customer.address}
+              value={customer.address || ""}
               onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
               placeholder="e.g., 123 Main St, Anytown, USA"
               rows={3}

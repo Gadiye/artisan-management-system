@@ -2,14 +2,11 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils";
-import { Home, Briefcase, DollarSign, Package, Users, Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
-// Import SheetTitle and SheetHeader
-import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader } from "@/components/ui/sheet";
-// You might need to import VisuallyHidden if you want to hide the title visually
-// import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-
+import { cn } from "@/lib/utils"
+import { Home, Briefcase, DollarSign, Package, Users, Menu, LogOut, User } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader } from "@/components/ui/sheet"
+import { useSession, signOut } from "next-auth/react"
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -18,14 +15,15 @@ const navigation = [
   { name: "Inventory", href: "/inventory", icon: Package },
   { name: "Artisans", href: "/artisans", icon: Users },
   // { name: "Reports", href: "/reports", icon: BarChart3 },
-  { name: "customers", href : "/customers", icon: Users },
-  { name: "orders", href : "/orders", icon: Package },
-  { name: "finished stock", href : "/stock", icon: Package },
+  { name: "customers", href: "/customers", icon: Users },
+  { name: "orders", href: "/orders", icon: Package },
+  { name: "finished stock", href: "/stock", icon: Package },
   { name: "Financials", href: "/financials", icon: DollarSign },
 ]
 
 export function Navigation() {
   const pathname = usePathname()
+  const { data: session } = useSession()
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -49,6 +47,27 @@ export function Navigation() {
               </Link>
             ))}
           </nav>
+        </div>
+        <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
+          <div className="w-full flex-1 md:w-auto md:flex-initial">
+          </div>
+          {session && (
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 text-sm font-medium text-muted-foreground">
+                <User className="h-4 w-4" />
+                <span>{session.user?.name || (session.user as any)?.username}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => signOut({ callbackUrl: "/login" })}
+                className="flex items-center space-x-2"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Logout</span>
+              </Button>
+            </div>
+          )}
         </div>
         <Sheet>
           <SheetTrigger asChild>

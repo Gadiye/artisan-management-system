@@ -53,8 +53,8 @@ export default function PendingPaymentsPage() {
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>
-            {error && typeof error === 'object' && 'message' in error 
-              ? (error as Error).message 
+            {error && typeof error === 'object' && 'message' in error
+              ? (error as Error).message
               : "An unknown error occurred."}
           </AlertDescription>
         </Alert>
@@ -85,7 +85,7 @@ export default function PendingPaymentsPage() {
                       <TableCell><Badge variant="secondary">{job.service_category}</Badge></TableCell>
                       <TableCell><Badge>{job.status}</Badge></TableCell>
                       <TableCell>{new Date(job.created_date).toLocaleDateString()}</TableCell>
-                      <TableCell>${Number(job.pending_payment).toFixed(2)}</TableCell>
+                      <TableCell>Ksh{Number(job.pending_payment).toFixed(2)}</TableCell>
                     </TableRow>
                   ))
                 ) : (

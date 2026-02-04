@@ -27,6 +27,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useArtisans, useInventory } from '@/hooks/useResource';
 import { useCreateJob } from '@/hooks/useCreateJob';
 import { JobItemPayload, CreateJobPayload } from '@/lib/api/types';
+import { InventoryItem } from '@/types';
 import { useProductPrice } from '@/hooks/useProductPrice';
 
 // --- CONSTANTS ---
@@ -38,7 +39,7 @@ const PRODUCT_TYPES = [
   "PLACE_CARD_HOLDER", "SANTA_ANIMALS", "SUGAR_SPOONS", "COCKTAIL_STICKS",
   "KEY_HOLDERS", "FLAT_MAGNETS", "PLAY_ANIMALS", "TRAINING_CHOPSTICKS",
   "CHOPSTICKS", "X_MAS_DECO", "FORKS", "BUTTER_KNIVES", "LETTER_OPENERS",
-  "JAM_SCOOPERS", "NAPKIN_HOLDERS", "HAIR_COMBS", "PAPER_WEIGHTS",  
+  "JAM_SCOOPERS", "NAPKIN_HOLDERS", "HAIR_COMBS", "PAPER_WEIGHTS",
 ]
 
 const SERVICE_CATEGORIES = ["CARVING", "CUTTING", "PAINTING", "SANDING", "FINISHING", "FINISHED"]
@@ -56,11 +57,11 @@ const ANIMAL_TYPES = [
 ]
 
 const PRODUCTION_CHAIN_MAP: { [key: string]: string[] } = {
-    'CUTTING': ['DRAWING'],
-    'SANDING': ['CUTTING', 'CARVING'],
-    'PAINTING': ['SANDING'],
-    'FINISHING': ['PAINTING'],
-    'FINISHED': ['FINISHING'],
+  'CUTTING': ['DRAWING'],
+  'SANDING': ['CUTTING', 'CARVING'],
+  'PAINTING': ['SANDING'],
+  'FINISHING': ['PAINTING'],
+  'FINISHED': ['FINISHING'],
 }
 
 // Function to generate a consistent color based on a string
@@ -90,7 +91,7 @@ const getColorForString = (str: string) => {
     "bg-sky-500 text-white border-sky-600",
     "bg-slate-600 text-white border-slate-700",
   ];
-  
+
   return colorCombos[Math.abs(hash) % colorCombos.length];
 };
 
@@ -143,10 +144,10 @@ export default function CreateJobPage() {
     if (!inventory) return {};
 
     const sourceCategories = PRODUCTION_CHAIN_MAP[serviceCategory];
-    
-    let filteredInventory = [];
+
+    let filteredInventory: InventoryItem[] = [];
     if (sourceCategories) {
-      filteredInventory = inventory.filter(item => sourceCategories.includes(item.service_category));
+      filteredInventory = inventory.filter(item => item.service_category && sourceCategories.includes(item.service_category));
     } else {
       // If no source categories are defined for the current serviceCategory,
       // it means this stage consumes raw materials, so no intermediate inventory is available.
@@ -199,8 +200,8 @@ export default function CreateJobPage() {
 
   // Enable the price query only when all required fields are filled
   const shouldFetchPrice = !!(
-    currentItem.productType && 
-    currentItem.animalType && 
+    currentItem.productType &&
+    currentItem.animalType &&
     currentItem.sizeCategory &&
     serviceCategory // serviceCategory is now required
   );
@@ -311,6 +312,8 @@ export default function CreateJobPage() {
       total_price: totalPrice,
       original_amount: ratePerUnit, // Now represents the rate per unit
       service_rate_per_unit: ratePerUnit,
+      quantity: quantityToOrder,
+      unit_price: ratePerUnit,
     };
 
     console.log("Adding new item:", newItem);
@@ -325,13 +328,13 @@ export default function CreateJobPage() {
     // Add to recent items, avoiding duplicates and limiting to 20
     const updatedRecentItems = [newRecentItem, ...recentItems.filter(
       item => !(item.productType === newRecentItem.productType &&
-               item.animalType === newRecentItem.animalType &&
-               item.sizeCategory === newRecentItem.sizeCategory)
+        item.animalType === newRecentItem.animalType &&
+        item.sizeCategory === newRecentItem.sizeCategory)
     )].slice(0, 20);
 
     setRecentItems(updatedRecentItems);
     localStorage.setItem(RECENT_ITEMS_CACHE_KEY, JSON.stringify(updatedRecentItems));
-    
+
     // Reset form but keep artisan selected
     setCurrentItem({
       artisanId: currentItem.artisanId,
@@ -382,7 +385,7 @@ export default function CreateJobPage() {
   const uniqueArtisansCount = new Set(jobItems.map((item) => item.artisan)).size;
 
   // Check if button should be disabled - removed productPrice.id requirement
-  const isAddButtonDisabled = 
+  const isAddButtonDisabled =
     !currentItem.artisanId ||
     !currentItem.productType ||
     !currentItem.animalType ||
@@ -399,8 +402,12 @@ export default function CreateJobPage() {
 
     const jobItemsPayload: JobItemPayload[] = jobItems.map(item => ({
       artisan: item.artisan,
-      product: item.product,
-      quantity_ordered: item.quantity_ordered,
+      product_type: item.product_type,
+      animal_type: item.animal_type,
+      size_category: item.size_category,
+      quantity: item.quantity_ordered,
+      unit_price: item.original_amount,
+      total_price: item.total_price,
     }));
 
     const payload: CreateJobPayload = {
@@ -424,7 +431,7 @@ export default function CreateJobPage() {
           animalType: "",
           sizeCategory: "",
           quantity: "",
-          singles:"",
+          singles: "",
           pairs: "",
         });
         sessionStorage.removeItem(CACHE_KEY);
@@ -460,8 +467,8 @@ export default function CreateJobPage() {
       "Rate per Unit": item.original_amount,
       "Total Price": item.total_price,
     }));
-  // Dynamically import the xlsx library
-  const XLSX = await import('xlsx');
+    // Dynamically import the xlsx library
+    const XLSX = await import('xlsx');
     const ws = XLSX.utils.json_to_sheet(dataToExport);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Job Items");
@@ -545,7 +552,7 @@ export default function CreateJobPage() {
                 />
               </div>
               <div className="flex items-center space-x-2">
-                <Checkbox id="bypass-inventory" checked={bypassInventoryDeduction} onCheckedChange={setBypassInventoryDeduction} />
+                <Checkbox id="bypass-inventory" checked={bypassInventoryDeduction} onCheckedChange={(checked) => setBypassInventoryDeduction(checked === true)} />
                 <label
                   htmlFor="bypass-inventory"
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
@@ -597,7 +604,7 @@ export default function CreateJobPage() {
                     value={String(currentItem.artisanId)}
                     onValueChange={(value) => setCurrentItem({ ...currentItem, artisanId: Number.parseInt(value) })}
                     disabled={artisansLoading || !!artisansError}>
-                      
+
                     <SelectTrigger>
                       <SelectValue placeholder="Select artisan" />
                     </SelectTrigger>
@@ -878,23 +885,23 @@ export default function CreateJobPage() {
               <div className="pt-4 border-t">
                 <div className="flex justify-between items-center">
                   <Label className="text-base font-medium">Total Job Value</Label>
-                                    <span className="text-lg font-bold">Ksh{totalJobValue.toFixed(2)}</span>
-                                  </div>
-                                </div>
-                  
-                                <Button
-                                  onClick={handleExport}
-                                  className="w-full mb-2" 
-                                  variant="outline"
-                                  disabled={jobItems.length === 0}>
-                                    Export to Spreadsheet
-                                </Button>
-                  
-                                <Button
-                                  onClick={handleSubmit}
-                                  className="w-full"
-                                  disabled={jobItems.length === 0 || !serviceCategory || createJobLoading}
-                                >
+                  <span className="text-lg font-bold">Ksh{totalJobValue.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <Button
+                onClick={handleExport}
+                className="w-full mb-2"
+                variant="outline"
+                disabled={jobItems.length === 0}>
+                Export to Spreadsheet
+              </Button>
+
+              <Button
+                onClick={handleSubmit}
+                className="w-full"
+                disabled={jobItems.length === 0 || !serviceCategory || createJobLoading}
+              >
                 {createJobLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Job
               </Button>

@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 
 import { useArtisans, usePayslips, useArtisansWithPendingPayments, useArtisanPendingPayments } from '@/hooks/useResource';
 import { api } from '@/lib/api';
+import { Artisan } from "@/types";
 
 const serviceCategories = ["CARVING", "CUTTING", "PAINTING", "SANDING", "FINISHING", "FINISHED"]
 
@@ -42,7 +43,7 @@ export default function PayslipsPage() {
 
   const totalPayslips = safePayslips.length
   const totalPayments = safePayslips.reduce((sum, p) => sum + (typeof p.total_payment === 'number' ? p.total_payment : parseFloat(p.total_payment) || 0), 0)
-  const pendingAmount = safeArtisansWithPendingPayments.reduce((sum, artisan) => sum + (typeof artisan.pending_payment_total === 'number' ? artisan.pending_payment_total : parseFloat(artisan.pending_payment_total) || 0), 0);
+  const pendingAmount = safeArtisansWithPendingPayments.reduce((sum, artisan) => sum + (typeof artisan.pending_payment_total === 'number' ? artisan.pending_payment_total : parseFloat(artisan.pending_payment_total || '0') || 0), 0);
 
   const handleGeneratePayslip = async () => {
     try {
@@ -125,7 +126,7 @@ export default function PayslipsPage() {
       <div className="container mx-auto p-6">
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>{artisansError instanceof Error ? artisansError.message : payslipsError instanceof Error ? payslipsError.message : "An unknown error occurred."}</AlertDescription>
+          <AlertDescription>{artisansError instanceof Error ? artisansError.message : payslipsError instanceof Error ? payslipsError.message : "An unknown error occurred."}</AlertDescription>
         </Alert>
         <Button onClick={() => { refetchPayslips(); /* refetchArtisans if implemented */ }} className="mt-4">Retry</Button>
       </div>
@@ -156,7 +157,7 @@ export default function PayslipsPage() {
             <CardTitle className="text-sm font-medium">Total Payments</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalPayments.toFixed(2)}</div>
+            <div className="text-2xl font-bold">Ksh{totalPayments.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">Paid out</p>
           </CardContent>
         </Card>
@@ -166,7 +167,7 @@ export default function PayslipsPage() {
             <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${pendingAmount.toFixed(2)}</div>
+            <div className="text-2xl font-bold">Ksh{pendingAmount.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">Awaiting payslip generation</p>
           </CardContent>
         </Card>
@@ -370,18 +371,18 @@ export default function PayslipsPage() {
                           <div className="text-muted-foreground">to {payslip.period_end}</div>
                         </div>
                       </TableCell>
-                     <TableCell className="font-medium">
-                        Ksh{(parseFloat(payslip.total_payment || '0') + parseFloat(payslip.total_advances_deducted || '0')).toFixed(2)}
+                      <TableCell className="font-medium">
+                        Ksh{(Number(payslip.total_payment || 0) + Number(payslip.total_advances_deducted || 0)).toFixed(2)}
                       </TableCell>
                       <TableCell className="font-medium text-red-600">
-                        -Ksh{parseFloat(payslip.total_advances_deducted || '0').toFixed(2)}
+                        -Ksh{Number(payslip.total_advances_deducted || 0).toFixed(2)}
                       </TableCell>
                       <TableCell className="font-medium">
-                        Ksh{parseFloat(payslip.total_payment || '0').toFixed(2)}
+                        Ksh{Number(payslip.total_payment || 0).toFixed(2)}
                       </TableCell>
                       <TableCell>{new Date(payslip.generated_date).toLocaleDateString()}</TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm" onClick={() => handleDownloadPayslip(payslip.id, payslip.spreadsheet_file)} disabled={!payslip.spreadsheet_file}>
+                        <Button variant="ghost" size="sm" onClick={() => handleDownloadPayslip(payslip.id, payslip.spreadsheet_file || '')} disabled={!payslip.spreadsheet_file}>
                           <Download className="h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -422,7 +423,7 @@ export default function PayslipsPage() {
                         <TableCell>
                           <Badge variant="outline">{artisan.name}</Badge>
                         </TableCell>
-                        <TableCell>${Number(artisan.pending_payment_total).toFixed(2)}</TableCell>
+                        <TableCell>Ksh{Number(artisan.pending_payment_total).toFixed(2)}</TableCell>
                       </TableRow>
                     ))
                   ) : (
@@ -454,7 +455,7 @@ interface PendingPaymentDetailsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   artisanId: number | null;
-  artisans: any[]; // Artisan[]
+  artisans: Artisan[];
 }
 
 function PendingPaymentDetailsDialog({ isOpen, onClose, artisanId, artisans }: PendingPaymentDetailsDialogProps) {
@@ -496,7 +497,7 @@ function PendingPaymentDetailsDialog({ isOpen, onClose, artisanId, artisans }: P
                       <TableCell>{item.product.product_type} ({item.product.animal_type})</TableCell>
                       <TableCell>{job.service_category}</TableCell>
                       <TableCell>{item.quantity_accepted}</TableCell>
-                      <TableCell>Ksh{parseFloat(item.final_payment as any).toFixed(2)}</TableCell>
+                      <TableCell>Ksh{parseFloat(item.final_payment).toFixed(2)}</TableCell>
                       <TableCell>{new Date(job.created_date).toLocaleDateString()}</TableCell>
                     </TableRow>
                   ))

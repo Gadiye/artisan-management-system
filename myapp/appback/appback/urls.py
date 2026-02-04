@@ -20,6 +20,7 @@ from django.http import JsonResponse
 from django.conf import settings
 from django.conf.urls.static import static
 from jobs.urls import standalone_router # Import the standalone_router
+from .views import json_login
 
 def api_root(request):
     return JsonResponse({
@@ -46,6 +47,7 @@ urlpatterns = [
     path('api/inventory/', include('inventory.urls')),
     path('api/orders/', include('orders.urls')),
     path('api/financials/', include('financials.urls')),
+    path('api/login/', json_login, name='json_login'),
     
     path('api/', include(standalone_router.urls)),
 ]

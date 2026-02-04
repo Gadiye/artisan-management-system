@@ -50,7 +50,7 @@ export default function CustomerDetailPage() {
         try {
           // Fetch customer with their orders
           const data = await api.customers.get(parseInt(id), { include_orders: 'true' });
-          setCustomer(data);
+          setCustomer(data as unknown as Customer);
         } catch (err) {
           setError('Failed to fetch customer details.');
         } finally {

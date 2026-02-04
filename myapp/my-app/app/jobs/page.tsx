@@ -9,27 +9,9 @@ import { Plus, Eye, CheckCircle } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useJobs } from '@/hooks/useResource';
+import { JobListEntry } from '@/types';
 
-// Type definitions
-export interface JobListEntry {
-  job_id: number;
-  created_date: string;
-  created_by: string;
-  status: "IN_PROGRESS" | "PARTIALLY_RECEIVED" | "COMPLETED";
-  status_display: string;
-  service_category: string;
-  service_category_display: string;
-  notes?: string | null;
-  total_cost: string;
-  total_final_payment: string;
-}
 
-export interface PaginatedResponse<T> {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: T[];
-}
 
 export default function JobsPage() {
   const { data: jobs, loading, error, refetch } = useJobs();
@@ -85,12 +67,12 @@ export default function JobsPage() {
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>
-            {error && typeof error === 'object' && 'message' in error 
-              ? (error as Error).message 
+            {error && typeof error === 'object' && 'message' in error
+              ? (error as Error).message
               : "An unknown error occurred."}
           </AlertDescription>
         </Alert>
-        <Button onClick={refetch} className="mt-4">Retry</Button>
+        <Button onClick={() => refetch()} className="mt-4">Retry</Button>
       </div>
     );
   }

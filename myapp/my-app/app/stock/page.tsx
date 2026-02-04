@@ -8,18 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useFinishedStock } from '@/hooks/useResource';
-import { FinishedStockItem } from "@/lib/api";
+import { FinishedStock, Product } from "@/types";
 
-interface EnrichedFinishedStockItem extends FinishedStockItem {
-  product: {
-    id: number;
-    product_type: string;
-    animal_type: string;
-    size_category: string;
-    base_price: number;
-    reorder_level: number;
-    unit_of_measure: string; // Added this field
-  };
+interface EnrichedFinishedStockItem extends FinishedStock {
+  product: Product & { unit_of_measure?: string };
 }
 
 function getStockStatusColor(status: string) {
@@ -61,8 +53,13 @@ export default function FinishedStockPage() {
   const lastUpdated = safeFinishedStock.length > 0 ? new Date(Math.max(...safeFinishedStock.map(item => new Date(item.last_updated).getTime()))).toLocaleDateString() : 'N/A';
 
   // Filter for low and out of stock items
-  const lowStockItems = safeFinishedStock.filter((item: EnrichedFinishedStockItem) => item.quantity <= item.product.reorder_level && item.quantity > 0).length;
-  const outOfStockItems = safeFinishedStock.filter((item: EnrichedFinishedStockItem) => item.quantity === 0).length;
+  // Filter for low and out of stock items
+  const lowStockItems = safeFinishedStock.filter((item): item is EnrichedFinishedStockItem => {
+    const product = item.product;
+    return typeof product === 'object' && product !== null && 'reorder_level' in product && item.quantity <= (product.reorder_level || 0) && item.quantity > 0;
+  }).length;
+
+  const outOfStockItems = safeFinishedStock.filter((item): item is EnrichedFinishedStockItem => item.quantity === 0).length;
 
 
   if (loading) {
@@ -103,7 +100,7 @@ export default function FinishedStockPage() {
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error.message}</AlertDescription>
         </Alert>
-        <Button onClick={refetch} className="mt-4">Retry</Button>
+        <Button onClick={() => refetch()} className="mt-4">Retry</Button>
       </div>
     );
   }
@@ -170,25 +167,31 @@ export default function FinishedStockPage() {
           <CardContent>
             <div className="space-y-2">
               {safeFinishedStock
-                .filter((item) => item.quantity <= item.product.reorder_level || item.quantity === 0)
+                .filter((item): item is EnrichedFinishedStockItem => {
+                  const product = item.product;
+                  return typeof product === 'object' && product !== null && 'reorder_level' in product && (item.quantity <= (product.reorder_level || 0) || item.quantity === 0);
+                })
                 .map((item) => {
+                  // Safe access to product properties
+                  const product = item.product;
+                  if (typeof product !== 'object' || product === null) return null;
                   let status = "IN_STOCK";
                   if (item.quantity === 0) {
                     status = "OUT_OF_STOCK";
-                  } else if (item.quantity <= item.product.reorder_level) {
+                  } else if (item.quantity <= (product.reorder_level ?? 0)) {
                     status = "LOW_STOCK";
                   }
                   return (
                     <div key={item.id} className="flex items-center justify-between p-2 bg-white rounded border">
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline">{(item.product.product_type ?? '').replace(/_/g, " ")}</Badge>
+                        <Badge variant="outline">{(product?.product_type || '').replace(/_/g, " ")}</Badge>
                         <span className="text-sm">
-                          {item.product.animal_type} ({item.product.size_category.replace(/_/g, " ")})
+                          {product?.animal_type} ({(product?.size_category || '').replace(/_/g, " ")})
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">
-                          {item.quantity} / {item.product.reorder_level} minimum
+                          {item.quantity} / {product?.reorder_level} minimum
                         </span>
                         <Badge variant={getStockStatusColor(status)}>{status.replace("_", " ")}</Badge>
                       </div>
@@ -223,37 +226,45 @@ export default function FinishedStockPage() {
             </TableHeader>
             <TableBody>
               {safeFinishedStock.map((item) => {
-                const margin = ((Number(item.product.base_price || 0) - Number(item.average_cost || 0)) / Number(item.product.base_price || 0)) * 100;
+                const product = item.product;
+                if (typeof product !== 'object' || product === null) return null;
+
+                const basePrice = Number(product.base_price || 0);
+                const avgCost = Number(item.average_cost || 0);
+                const margin = basePrice > 0
+                  ? ((basePrice - avgCost) / basePrice) * 100
+                  : 0;
+
                 let status = "IN_STOCK";
                 if (item.quantity === 0) {
                   status = "OUT_OF_STOCK";
-                } else if (item.quantity <= item.product.reorder_level) {
+                } else if (product.reorder_level !== undefined && item.quantity <= product.reorder_level) {
                   status = "LOW_STOCK";
                 }
                 return (
                   <TableRow key={item.id}>
                     <TableCell>
-                      <Badge variant="outline">{item.product.product_type.replace(/_/g, " ")}</Badge>
+                      <Badge variant="outline">{(product?.product_type || '').replace(/_/g, " ")}</Badge>
                     </TableCell>
-                    <TableCell>{item.product.animal_type ?? ''}</TableCell>
-                    <TableCell>{(item.product.size_category ?? '').replace(/_/g, " ")}</TableCell>
+                    <TableCell>{product?.animal_type ?? ''}</TableCell>
+                    <TableCell>{(product?.size_category ?? '').replace(/_/g, " ")}</TableCell>
                     <TableCell className="text-right font-medium">
-                      {item.product.unit_of_measure === 'PAIRS' ? 
+                      {product?.unit_of_measure === 'PAIRS' ?
                         (() => {
                           const pairs = Math.floor(item.quantity / 2);
                           const singles = item.quantity % 2;
                           return `${pairs} pairs, ${singles} singles (${item.quantity} individual items)`;
                         })()
-                        : 
+                        :
                         <>{item.quantity} items</>
                       }
-                      {item.quantity <= item.product.reorder_level && item.quantity > 0 && (
+                      {product && item.quantity <= (product.reorder_level || 0) && item.quantity > 0 && (
                         <span className="text-yellow-600 ml-1">⚠</span>
                       )}
                     </TableCell>
                     <TableCell>${Number(item.average_cost || 0).toFixed(2)}</TableCell>
                     <TableCell className="text-right font-medium">
-                      ${Number(item.product.base_price || 0).toFixed(2)}
+                      ${Number(product?.base_price || 0).toFixed(2)}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">

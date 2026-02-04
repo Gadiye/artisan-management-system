@@ -64,11 +64,11 @@ export default function CompleteJobPage() {
     notes: "",
   })
 
-  const { data: fetchedJob } = useJob(selectedJobId ? parseInt(selectedJobId) : 0, { immediate: !!selectedJobId });
+  const { data: fetchedJob } = useJob(selectedJobId ? parseInt(selectedJobId) : 0);
 
   useEffect(() => {
     if (fetchedJob) {
-      setDetailedJob(fetchedJob as JobWithDeliveries);
+      setDetailedJob(fetchedJob as unknown as JobWithDeliveries);
     }
   }, [fetchedJob]);
 
@@ -111,7 +111,7 @@ export default function CompleteJobPage() {
 
         // Update the selected item with the new data
         if (selectedJob) {
-          const updatedItems = selectedJob.items.map(item => 
+          const updatedItems = selectedJob.items.map(item =>
             item.id === selectedItem.id ? updatedItem : item
           );
           setDetailedJob({ ...selectedJob, items: updatedItems });
@@ -208,7 +208,7 @@ export default function CompleteJobPage() {
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{getErrorMessage(error)}</AlertDescription>
         </Alert>
-        <Button onClick={refetch} className="mt-4">Retry</Button>
+        <Button onClick={() => refetch()} className="mt-4">Retry</Button>
       </div>
     );
   }
@@ -267,9 +267,8 @@ export default function CompleteJobPage() {
                     return (
                       <div
                         key={item.id}
-                        className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                          selectedItemId === item.id ? "border-blue-500 bg-blue-50" : "hover:bg-gray-50"
-                        }`}
+                        className={`p-4 border rounded-lg cursor-pointer transition-colors ${selectedItemId === item.id ? "border-blue-500 bg-blue-50" : "hover:bg-gray-50"
+                          }`}
                         onClick={() => setSelectedItemId(item.id)}
                       >
                         <div className="flex items-center justify-between mb-2">
@@ -282,7 +281,7 @@ export default function CompleteJobPage() {
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="font-medium">${(item.original_amount * item.quantity_accepted).toFixed(2)}</p>
+                            <p className="font-medium">${(Number(item.original_amount) * item.quantity_accepted).toFixed(2)}</p>
                             <p className="text-xs text-muted-foreground">Current payment</p>
                             {item.service_rate_per_unit !== undefined && (
                               <p className="text-xs text-muted-foreground">Rate: ${item.service_rate_per_unit.toFixed(2)}/unit</p>

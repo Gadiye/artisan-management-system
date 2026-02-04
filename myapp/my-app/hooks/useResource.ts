@@ -12,8 +12,8 @@ function createResourceHook<T>(endpoint: string) {
     const { data, ...rest } = useApi<PaginatedResponse<T>>(endpoint);
 
     // Normalize paginated DRF response to a simple array
-    const normalizedData = (data && typeof data === 'object' && 'results' in data) 
-      ? (data as any).results 
+    const normalizedData = (data && typeof data === 'object' && 'results' in data)
+      ? (data as any).results
       : data;
 
     return { data: normalizedData as T[], ...rest };
@@ -25,17 +25,17 @@ function createResourceHook<T>(endpoint: string) {
 export const useArtisans = createResourceHook<Artisan>("/artisans/");
 export const useProducts = createResourceHook<Product>("/products/");
 export const useCustomers = createResourceHook<Customer>("/customers/");
-export const useJobs = createResourceHook<Job[]>("/jobs/");
+export const useJobs = createResourceHook<Job>("/jobs/");
 export const useOrders = createResourceHook<Order>("/orders/");
 export const useFinishedStock = createResourceHook<FinishedStock>("/inventory/finished-stock/");
 export const usePayslips = createResourceHook<Payslip>("/financials/payslips/");
 export const useServiceRates = createResourceHook<ServiceRate>("/financials/service-rates/");
-export const useHierarchicalServiceRates = createResourceHook<HierarchicalRate[]>("/service-rates/hierarchical/");
+export const useHierarchicalServiceRates = createResourceHook<HierarchicalRate>("/service-rates/hierarchical/");
 export const useInventory = createResourceHook<InventoryItem>("/inventory/items/");
 export const useProductsWithoutServiceRates = createResourceHook<Product>("/products/missing-service-rates/");
-export const useArtisansWithPendingPayments = createResourceHook<Artisan[]>("/artisans/with-pending-payments/");
+export const useArtisansWithPendingPayments = createResourceHook<Artisan>("/artisans/with-pending-payments/");
 
-export const usePendingPayslipItems = createResourceHook<JobItem[]>("/job-items/pending-payslip/");
+export const usePendingPayslipItems = createResourceHook<JobItem>("/job-items/pending-payslip/");
 
 export function useArtisanPendingPayments(artisanId: number | null) {
   return useApi<Job[]>(artisanId ? `/artisans/${artisanId}/pending-payments/` : null);

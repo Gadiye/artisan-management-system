@@ -1,7 +1,8 @@
-import { PaginatedResponse, JobListEntry, } from '@/types'; // Assuming types are in @/types
+import { PaginatedResponse, JobListEntry, ArtisanAdvance, AdvanceDeduction, ServiceRate } from '@/types'; // Assuming types are in @/types
+import { CreateJobPayload } from './api/types'; // Import from local types file
 
 // API configuration and base functions
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 // Types based on your Django models
 export interface Product {
@@ -302,7 +303,10 @@ export const api = {
   // Customers
   customers: {
     list: () => apiRequest<Customer[]>("/customers/"),
-    get: (id: number) => apiRequest<Customer>(`/customers/${id}/`),
+    get: (id: number, params?: Record<string, string>) => {
+      const query = params ? `?${new URLSearchParams(params).toString()}` : '';
+      return apiRequest<Customer>(`/customers/${id}/${query}`);
+    },
     create: (data: Partial<Customer>) =>
       apiRequest<Customer>("/customers/", {
         method: "POST",
@@ -323,7 +327,7 @@ export const api = {
   jobs: {
     list: (params?: URLSearchParams) => apiRequest<PaginatedResponse<JobListEntry>>(`/jobs/?${params?.toString() || ''}`),
     get: (id: number) => apiRequest<Job>(`/jobs/${id}/`),
-    create: (data: Partial<Job>) =>
+    create: (data: CreateJobPayload) =>
       apiRequest<Job>("/jobs/", {
         method: "POST",
         body: JSON.stringify(data),
@@ -574,7 +578,7 @@ export const api = {
     upload: (file: File, endpoint: string) => {
       const formData = new FormData();
       formData.append('file', file);
-      
+
       return apiRequest<Record<string, unknown>>(endpoint, {
         method: "POST",
         body: formData,

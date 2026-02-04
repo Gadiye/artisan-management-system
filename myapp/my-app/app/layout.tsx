@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
+import { Providers } from "@/components/providers"
 import { Navigation } from "@/components/navigation"
 import { Toaster } from "@/components/ui/toaster"
 
@@ -20,9 +21,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <Navigation />
-        <main>{children}</main>
-        <Toaster />
+        <Providers>
+          <Navigation />
+          <main>{children}</main>
+          <Toaster />
+        </Providers>
       </body>
     </html>
   )

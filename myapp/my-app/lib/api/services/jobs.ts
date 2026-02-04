@@ -1,13 +1,13 @@
 // lib/api/services/jobs.ts
 import { apiRequest } from '../client';
 import { createCrudApi } from '../base';
-import { Job, JobItem, PaginatedJobsResponse } from '../types';
+import { Job, JobItem, PaginatedResponse, JobListEntry } from '@/types';
 
-const jobsCrud = createCrudApi<Job, PaginatedJobsResponse>('jobs');
+const jobsCrud = createCrudApi<Job, PaginatedResponse<JobListEntry>>('jobs');
 
 export const jobsApi = {
   ...jobsCrud,
-  
+
   complete: (id: number, completionData: Record<string, unknown>) =>
     apiRequest<Job>(`/jobs/${id}/complete/`, {
       method: "POST",
