@@ -8,8 +8,7 @@ services:
     startCommand: gunicorn appback.wsgi:application
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: # Put your DB name if within Render, otherwise use secret
+        value: postgres://avnadmin:AVNS_Z1NIEnRHAt2_uwx06CM@pg-21c9d5e1-gk-40.d.aivencloud.com:24385/defaultdb?sslmode=require
       - key: SECRET_KEY
         generateValue: true
       - key: DEBUG
@@ -17,17 +16,4 @@ services:
       - key: ALLOWED_HOSTS
         value: "*" # Update with your Render domain
 
-  # Frontend
-  - type: web
-    name: kichaka-poa-frontend
-    env: node
-    rootDir: myapp/my-app
-    buildCommand: npm install && npm run build
-    startCommand: npm start
-    envVars:
-      - key: NEXT_PUBLIC_API_URL
-        value: # URL of the backend service (e.g., https://kichaka-poa-backend.onrender.com/api/)
-      - key: AUTH_SECRET
-        generateValue: true
-      - key: AUTH_URL
-        value: # URL of this frontend service (e.g., https://kichaka-poa-frontend.onrender.com)
+
