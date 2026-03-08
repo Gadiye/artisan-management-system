@@ -41,8 +41,8 @@ export interface Customer {
 export interface JobItem {
   id: number
   job: number
-  artisan: number | {id: number; name: string } // Can be an object or just an ID
-  product: number | {id: number; product_type: string; animal_type: string; service_category: string};
+  artisan: number | { id: number; name: string } // Can be an object or just an ID
+  product: number | { id: number; product_type: string; animal_type: string; service_category: string };
   quantity_ordered: number
   quantity_received: number
   quantity_accepted: number
@@ -115,12 +115,14 @@ export interface ProductPriceDetails {
 // Job creation payloads
 export interface JobItemPayload {
   artisan: number;
-  product_type: string;
-  animal_type: string;
-  size_category: string;
-  quantity: number;
-  unit_price: number;
-  total_price: number;
+  product: number; // Added product ID
+  quantity_ordered: number; // Renamed from quantity
+  // Optional fields for UI/Debugging
+  product_type?: string;
+  animal_type?: string;
+  size_category?: string;
+  unit_price?: number;
+  total_price?: number;
 }
 
 export interface CreateJobPayload {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { format } from "date-fns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,12 +10,23 @@ import { Badge } from "@/components/ui/badge";
 import { Download, BarChart3, PieChart, TrendingUp, DollarSign } from "lucide-react";
 import { DateRangePicker } from "@/components/date-range-picker";
 import { DateRange } from "react-day-picker";
+import { useReports } from "@/hooks/useResource";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ReportsPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(2024, 0, 1),
     to: new Date(),
-  })
+  });
+
+  const startDateStr = dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : undefined;
+  const endDateStr = dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : undefined;
+
+  const { data, loading, error } = useReports(startDateStr, endDateStr);
+
+  if (error) {
+    return <div className="p-6 text-red-500">Failed to load reports: {error.message}</div>;
+  }
 
   return (
     <div className="container mx-auto p-6">
@@ -34,379 +46,267 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">$12,450.00</div>
-            <div className="flex items-center mt-1">
-              <span className="text-xs text-green-600 font-medium">+12.5%</span>
-              <span className="text-xs text-muted-foreground ml-1">vs last month</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Production Volume</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">342 items</div>
-            <div className="flex items-center mt-1">
-              <span className="text-xs text-green-600 font-medium">+8.2%</span>
-              <span className="text-xs text-muted-foreground ml-1">vs last month</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Quality Rate</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">94.3%</div>
-            <div className="flex items-center mt-1">
-              <span className="text-xs text-red-600 font-medium">-1.2%</span>
-              <span className="text-xs text-muted-foreground ml-1">vs last month</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Active Artisans</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">8</div>
-            <div className="flex items-center mt-1">
-              <span className="text-xs text-muted-foreground">No change</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Report Tabs */}
-      <Tabs defaultValue="production" className="mb-8">
-        <TabsList className="grid grid-cols-4 mb-4">
-          <TabsTrigger value="production">
-            <BarChart3 className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Production</span>
-          </TabsTrigger>
-          <TabsTrigger value="financial">
-            <DollarSign className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Financial</span>
-          </TabsTrigger>
-          <TabsTrigger value="quality">
-            <PieChart className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Quality</span>
-          </TabsTrigger>
-          <TabsTrigger value="trends">
-            <TrendingUp className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Trends</span>
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Production Reports */}
-        <TabsContent value="production">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {loading ? (
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 w-full" />)}
+          </div>
+          <Skeleton className="h-[400px] w-full" />
+        </div>
+      ) : (
+        <>
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card>
-              <CardHeader>
-                <CardTitle>Production by Product Type</CardTitle>
-                <CardDescription>Items produced by product category</CardDescription>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
               </CardHeader>
-              <CardContent className="h-80">
-                <ProductionBarChart />
+              <CardContent>
+                <div className="text-2xl font-bold">${data?.summary?.total_revenue?.toLocaleString() || "0.00"}</div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle>Production by Artisan</CardTitle>
-                <CardDescription>Top performing artisans by volume</CardDescription>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Production Volume</CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Artisan</TableHead>
-                      <TableHead>Items</TableHead>
-                      <TableHead>Avg. Quality</TableHead>
-                      <TableHead>Value</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell className="font-medium">John Smith</TableCell>
-                      <TableCell>78</TableCell>
-                      <TableCell>96.2%</TableCell>
-                      <TableCell>$3,120.00</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-medium">Maria Garcia</TableCell>
-                      <TableCell>65</TableCell>
-                      <TableCell>94.8%</TableCell>
-                      <TableCell>$2,600.00</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-medium">Carlos Rodriguez</TableCell>
-                      <TableCell>52</TableCell>
-                      <TableCell>92.5%</TableCell>
-                      <TableCell>$2,080.00</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-medium">Anna Johnson</TableCell>
-                      <TableCell>48</TableCell>
-                      <TableCell>95.1%</TableCell>
-                      <TableCell>$1,920.00</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-medium">David Chen</TableCell>
-                      <TableCell>42</TableCell>
-                      <TableCell>93.7%</TableCell>
-                      <TableCell>$1,680.00</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
+                <div className="text-2xl font-bold">{data?.summary?.production_volume || 0} items</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Quality Rate</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{data?.summary?.quality_rate || 0}%</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Active Artisans</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{data?.summary?.active_artisans || 0}</div>
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
 
-        {/* Financial Reports */}
-        <TabsContent value="financial">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Revenue by Product Category</CardTitle>
-                <CardDescription>Financial breakdown by product type</CardDescription>
-              </CardHeader>
-              <CardContent className="h-80">
-                <RevenueBarChart />
-              </CardContent>
-            </Card>
+          {/* Report Tabs */}
+          <Tabs defaultValue="production" className="mb-8">
+            <TabsList className="grid grid-cols-4 mb-4">
+              <TabsTrigger value="production">
+                <BarChart3 className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Production</span>
+              </TabsTrigger>
+              <TabsTrigger value="financial">
+                <DollarSign className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Financial</span>
+              </TabsTrigger>
+              <TabsTrigger value="quality">
+                <PieChart className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Quality</span>
+              </TabsTrigger>
+              <TabsTrigger value="trends">
+                <TrendingUp className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Trends</span>
+              </TabsTrigger>
+            </TabsList>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Financial Summary</CardTitle>
-                <CardDescription>Revenue, costs, and margins</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Revenue</TableHead>
-                      <TableHead>Cost</TableHead>
-                      <TableHead>Margin</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell>
-                        <Badge variant="outline">SITTING_ANIMAL</Badge>
-                      </TableCell>
-                      <TableCell>$3,450.00</TableCell>
-                      <TableCell>$1,725.00</TableCell>
-                      <TableCell className="text-green-600">50%</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>
-                        <Badge variant="outline">ANIMAL_MASKS</Badge>
-                      </TableCell>
-                      <TableCell>$2,800.00</TableCell>
-                      <TableCell>$1,540.00</TableCell>
-                      <TableCell className="text-green-600">45%</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>
-                        <Badge variant="outline">YOGA_BOWLS</Badge>
-                      </TableCell>
-                      <TableCell>$2,200.00</TableCell>
-                      <TableCell>$1,100.00</TableCell>
-                      <TableCell className="text-green-600">50%</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>
-                        <Badge variant="outline">STANDING_ANIMAL</Badge>
-                      </TableCell>
-                      <TableCell>$2,100.00</TableCell>
-                      <TableCell>$1,155.00</TableCell>
-                      <TableCell className="text-green-600">45%</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>
-                        <Badge variant="outline">CHOPSTICK_HOLDERS</Badge>
-                      </TableCell>
-                      <TableCell>$1,900.00</TableCell>
-                      <TableCell>$950.00</TableCell>
-                      <TableCell className="text-green-600">50%</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
+            {/* Production Reports */}
+            <TabsContent value="production">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Production by Product Type</CardTitle>
+                    <CardDescription>Top Items produced by product category</CardDescription>
+                  </CardHeader>
+                  <CardContent className="h-80">
+                    <ProductionBarChart data={data?.production?.by_category || []} />
+                  </CardContent>
+                </Card>
 
-        {/* Quality Reports */}
-        <TabsContent value="quality">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Quality Metrics</CardTitle>
-                <CardDescription>Acceptance rates by product category</CardDescription>
-              </CardHeader>
-              <CardContent className="h-80">
-                <QualityPieChart />
-              </CardContent>
-            </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Production by Artisan</CardTitle>
+                    <CardDescription>Top performing artisans by volume</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Artisan</TableHead>
+                          <TableHead>Items</TableHead>
+                          <TableHead>Avg. Quality</TableHead>
+                          <TableHead>Value</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(data?.production?.top_artisans || []).map((artisan: any, i: number) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-medium">{artisan.name}</TableCell>
+                            <TableCell>{artisan.items}</TableCell>
+                            <TableCell>{artisan.quality}</TableCell>
+                            <TableCell>${artisan.value?.toLocaleString()}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Rejection Analysis</CardTitle>
-                <CardDescription>Reasons for quality rejections</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Reason</TableHead>
-                      <TableHead>Count</TableHead>
-                      <TableHead>% of Total</TableHead>
-                      <TableHead>Impact</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell className="font-medium">Quality Issues</TableCell>
-                      <TableCell>12</TableCell>
-                      <TableCell>60%</TableCell>
-                      <TableCell>$480.00</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-medium">Damaged Items</TableCell>
-                      <TableCell>5</TableCell>
-                      <TableCell>25%</TableCell>
-                      <TableCell>$200.00</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-medium">Other</TableCell>
-                      <TableCell>3</TableCell>
-                      <TableCell>15%</TableCell>
-                      <TableCell>$120.00</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
+            {/* Financial Reports */}
+            <TabsContent value="financial">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Revenue by Product Category</CardTitle>
+                    <CardDescription>Top Financial breakdown by product type</CardDescription>
+                  </CardHeader>
+                  <CardContent className="h-80">
+                    <RevenueBarChart data={data?.financial?.revenue_by_category || []} />
+                  </CardContent>
+                </Card>
 
-                <div className="mt-6">
-                  <h4 className="text-sm font-medium mb-2">Common Quality Issues</h4>
-                  <ul className="text-sm space-y-1 text-muted-foreground">
-                    <li>• Inconsistent paint application</li>
-                    <li>• Rough edges on carved pieces</li>
-                    <li>• Uneven sanding on surfaces</li>
-                    <li>• Misaligned features on animal figurines</li>
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Financial Summary</CardTitle>
+                    <CardDescription>Revenue, costs, and margins by category</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Category</TableHead>
+                          <TableHead>Revenue</TableHead>
+                          <TableHead>Est. Cost</TableHead>
+                          <TableHead>Margin</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(data?.financial?.summary || []).map((fs: any, i: number) => (
+                          <TableRow key={i}>
+                            <TableCell>
+                              <Badge variant="outline">{fs.category}</Badge>
+                            </TableCell>
+                            <TableCell>${fs.revenue?.toLocaleString()}</TableCell>
+                            <TableCell>${fs.cost?.toLocaleString()}</TableCell>
+                            <TableCell className="text-green-600">{fs.margin}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
 
-        {/* Trends Reports */}
-        <TabsContent value="trends">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Monthly Production Trends</CardTitle>
-                <CardDescription>Production volume over time</CardDescription>
-              </CardHeader>
-              <CardContent className="h-80">
-                <TrendsLineChart />
-              </CardContent>
-            </Card>
+            {/* Quality Reports */}
+            <TabsContent value="quality">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Quality Metrics</CardTitle>
+                    <CardDescription>Acceptance versus Rejection rates</CardDescription>
+                  </CardHeader>
+                  <CardContent className="h-80">
+                    <QualityPieChart data={data?.quality?.metrics || []} />
+                  </CardContent>
+                </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Seasonal Analysis</CardTitle>
-                <CardDescription>Production patterns by month</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Month</TableHead>
-                      <TableHead>Volume</TableHead>
-                      <TableHead>Revenue</TableHead>
-                      <TableHead>YoY Change</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell className="font-medium">January</TableCell>
-                      <TableCell>85 items</TableCell>
-                      <TableCell>$3,400.00</TableCell>
-                      <TableCell className="text-green-600">+12%</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-medium">February</TableCell>
-                      <TableCell>78 items</TableCell>
-                      <TableCell>$3,120.00</TableCell>
-                      <TableCell className="text-green-600">+8%</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-medium">March</TableCell>
-                      <TableCell>92 items</TableCell>
-                      <TableCell>$3,680.00</TableCell>
-                      <TableCell className="text-green-600">+15%</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-medium">April</TableCell>
-                      <TableCell>87 items</TableCell>
-                      <TableCell>$3,480.00</TableCell>
-                      <TableCell className="text-green-600">+10%</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Rejection Analysis</CardTitle>
+                    <CardDescription>Reasons for quality rejections</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Reason</TableHead>
+                          <TableHead>Count</TableHead>
+                          <TableHead>% of Total</TableHead>
+                          <TableHead>Est. Impact</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(data?.quality?.rejections || []).map((rej: any, i: number) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-medium">{rej.reason}</TableCell>
+                            <TableCell>{rej.count}</TableCell>
+                            <TableCell>{rej.percent}</TableCell>
+                            <TableCell>${rej.impact}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
 
-                <div className="mt-6">
-                  <h4 className="text-sm font-medium mb-2">Seasonal Insights</h4>
-                  <ul className="text-sm space-y-1 text-muted-foreground">
-                    <li>• Peak production occurs in Q4 (holiday season)</li>
-                    <li>• Animal masks show 35% higher demand in October</li>
-                    <li>• Yoga bowls trend upward in January (New Year)</li>
-                    <li>• Summer months show preference for smaller items</li>
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+            {/* Trends Reports */}
+            <TabsContent value="trends">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Monthly Production Trends</CardTitle>
+                    <CardDescription>Production volume over time</CardDescription>
+                  </CardHeader>
+                  <CardContent className="h-80">
+                    <TrendsLineChart data={data?.trends?.monthly || []} />
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Seasonal Volume Data</CardTitle>
+                    <CardDescription>Production patterns by month</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Month</TableHead>
+                          <TableHead>Volume</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(data?.trends?.monthly || []).map((trend: any, i: number) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-medium">{trend.month}</TableCell>
+                            <TableCell>{trend.value} items</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </>
+      )}
     </div>
-  )
+  );
 }
 
-// Simple chart components using HTML/CSS for visualization
-// In a real app, you might use a charting library like Chart.js or Recharts
+// Chart components
 
-function ProductionBarChart() {
-  const data = [
-    { label: "Sitting Animal", value: 85, color: "bg-blue-500" },
-    { label: "Animal Masks", value: 65, color: "bg-green-500" },
-    { label: "Yoga Bowls", value: 55, color: "bg-yellow-500" },
-    { label: "Standing Animal", value: 45, color: "bg-purple-500" },
-    { label: "Chopstick Holders", value: 35, color: "bg-pink-500" },
-  ]
-
-  const maxValue = Math.max(...data.map((item) => item.value))
+function ProductionBarChart({ data }: { data: any[] }) {
+  if (!data || data.length === 0) return <div className="flex h-full items-center justify-center text-muted-foreground">No data available</div>;
+  const colors = ["bg-blue-500", "bg-green-500", "bg-yellow-500", "bg-purple-500", "bg-pink-500"];
+  const formattedData = data.map((d, i) => ({ label: d.category_name, value: d.value, color: colors[i % colors.length] }));
+  const maxValue = Math.max(...formattedData.map((item) => item.value), 1);
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 flex items-end">
-        {data.map((item, index) => (
+        {formattedData.map((item, index) => (
           <div key={index} className="flex-1 flex flex-col items-center justify-end h-full px-1">
             <div
               className={`w-full ${item.color} rounded-t`}
@@ -416,9 +316,9 @@ function ProductionBarChart() {
         ))}
       </div>
       <div className="flex mt-2">
-        {data.map((item, index) => (
+        {formattedData.map((item, index) => (
           <div key={index} className="flex-1 text-center">
-            <div className="text-xs font-medium truncate">{item.label}</div>
+            <div className="text-[10px] font-medium truncate" title={item.label}>{item.label}</div>
             <div className="text-xs text-muted-foreground">{item.value}</div>
           </div>
         ))}
@@ -427,21 +327,16 @@ function ProductionBarChart() {
   )
 }
 
-function RevenueBarChart() {
-  const data = [
-    { label: "Sitting Animal", value: 3450, color: "bg-blue-500" },
-    { label: "Animal Masks", value: 2800, color: "bg-green-500" },
-    { label: "Yoga Bowls", value: 2200, color: "bg-yellow-500" },
-    { label: "Standing Animal", value: 2100, color: "bg-purple-500" },
-    { label: "Chopstick Holders", value: 1900, color: "bg-pink-500" },
-  ]
-
-  const maxValue = Math.max(...data.map((item) => item.value))
+function RevenueBarChart({ data }: { data: any[] }) {
+  if (!data || data.length === 0) return <div className="flex h-full items-center justify-center text-muted-foreground">No data available</div>;
+  const colors = ["bg-blue-500", "bg-green-500", "bg-yellow-500", "bg-purple-500", "bg-pink-500"];
+  const formattedData = data.map((d, i) => ({ label: d.category_name, value: d.value, color: colors[i % colors.length] }));
+  const maxValue = Math.max(...formattedData.map((item) => item.value), 1);
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 flex items-end">
-        {data.map((item, index) => (
+        {formattedData.map((item, index) => (
           <div key={index} className="flex-1 flex flex-col items-center justify-end h-full px-1">
             <div
               className={`w-full ${item.color} rounded-t`}
@@ -451,10 +346,10 @@ function RevenueBarChart() {
         ))}
       </div>
       <div className="flex mt-2">
-        {data.map((item, index) => (
+        {formattedData.map((item, index) => (
           <div key={index} className="flex-1 text-center">
-            <div className="text-xs font-medium truncate">{item.label}</div>
-            <div className="text-xs text-muted-foreground">${item.value}</div>
+            <div className="text-[10px] font-medium truncate" title={item.label}>{item.label}</div>
+            <div className="text-xs text-muted-foreground">${item.value?.toLocaleString()}</div>
           </div>
         ))}
       </div>
@@ -462,27 +357,23 @@ function RevenueBarChart() {
   )
 }
 
-function QualityPieChart() {
-  const data = [
-    { label: "Accepted", value: 94.3, color: "bg-green-500" },
-    { label: "Rejected", value: 5.7, color: "bg-red-500" },
-  ]
-
+function QualityPieChart({ data }: { data: any[] }) {
+  if (!data || data.length === 0 || data[0].value === 0) return <div className="flex h-full items-center justify-center text-muted-foreground">No data available (0% acceptance)</div>;
+  const acceptanceRate = data[0].value;
   return (
     <div className="flex flex-col items-center justify-center h-full">
       <div className="relative w-48 h-48">
         <div
           className="absolute inset-0 rounded-full bg-green-500"
-          style={{ clipPath: "polygon(50% 50%, 0 0, 0 100%, 100% 100%, 100% 0)" }}
         ></div>
         <div
           className="absolute inset-0 rounded-full bg-red-500"
-          style={{ clipPath: "polygon(50% 50%, 100% 0, 100% 20%, 50% 50%)" }}
+          style={{ clipPath: `polygon(50% 50%, 50% 0, 100% 0, 100% ${100 - acceptanceRate}%, 50% 50%)` }}
         ></div>
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="bg-white rounded-full w-32 h-32 flex items-center justify-center">
             <div className="text-center">
-              <div className="text-2xl font-bold">94.3%</div>
+              <div className="text-2xl font-bold">{acceptanceRate}%</div>
               <div className="text-xs text-muted-foreground">Acceptance Rate</div>
             </div>
           </div>
@@ -502,18 +393,11 @@ function QualityPieChart() {
   )
 }
 
-function TrendsLineChart() {
-  const data = [
-    { month: "Jan", value: 85 },
-    { month: "Feb", value: 78 },
-    { month: "Mar", value: 92 },
-    { month: "Apr", value: 87 },
-    { month: "May", value: 95 },
-    { month: "Jun", value: 90 },
-  ]
+function TrendsLineChart({ data }: { data: any[] }) {
+  if (!data || data.length === 0) return <div className="flex h-full items-center justify-center text-muted-foreground">No data available</div>;
 
-  const maxValue = Math.max(...data.map((item) => item.value))
-  const minValue = Math.min(...data.map((item) => item.value))
+  const maxValue = Math.max(...data.map((item) => item.value), 1)
+  const minValue = 0;
   const range = maxValue - minValue
 
   return (
@@ -539,7 +423,7 @@ function TrendsLineChart() {
                     }}
                   ></div>
                 )}
-                <div className="w-3 h-3 rounded-full bg-blue-500 z-10"></div>
+                <div className="w-3 h-3 rounded-full bg-blue-500 z-10 transition-all duration-300" style={{ transform: `translateY(-${height}px)` }}></div>
               </div>
             )
           })}

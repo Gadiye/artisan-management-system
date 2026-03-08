@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Home, Briefcase, DollarSign, Package, Users, Menu, LogOut, User } from "lucide-react"
+import { Home, Briefcase, DollarSign, Package, Users, Menu, LogOut, User, BarChart3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader } from "@/components/ui/sheet"
 import { useSession, signOut } from "next-auth/react"
@@ -14,11 +14,12 @@ const navigation = [
   { name: "Pricing", href: "/pricing", icon: DollarSign },
   { name: "Inventory", href: "/inventory", icon: Package },
   { name: "Artisans", href: "/artisans", icon: Users },
-  // { name: "Reports", href: "/reports", icon: BarChart3 },
+  { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "customers", href: "/customers", icon: Users },
   { name: "orders", href: "/orders", icon: Package },
   { name: "finished stock", href: "/stock", icon: Package },
   { name: "Financials", href: "/financials", icon: DollarSign },
+  { name: "Production Guide", href: "/production", icon: Package },
 ]
 
 export function Navigation() {

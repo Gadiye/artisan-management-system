@@ -11,9 +11,14 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
+from django.utils.dateparse import parse_date
+from django.conf import settings
 
 from .models import Job, JobItem, JobDelivery, ServiceRate
+from inventory.models import Inventory, FinishedStock
+from orders.models import OrderItem
 from .serializers import (
     JobListSerializer,
     JobDetailSerializer,
@@ -115,6 +120,292 @@ class JobViewSet(viewsets.ModelViewSet):
             )['total'] or 0,
         }
         return Response(stats)
+
+    @action(detail=False, methods=['get'], url_path='production-guide')
+    def production_guide(self, request):
+        """
+        GET /api/jobs/production-guide/
+        Returns aggregated product and artisan workload data for the UI.
+        """
+        products = Product.objects.filter(is_active=True).values(
+            'id', 'product_type', 'animal_type', 'size_category'
+        )
+        
+        # 1. Bulk demand (Order Items)
+        demand_qs = OrderItem.objects.filter(
+            order__status__in=['PENDING', 'PROCESSING']
+        ).values('product_id').annotate(total=Sum('quantity'))
+        demand_map = {item['product_id']: item['total'] for item in demand_qs}
+
+        # 2. Bulk stock (Finished Stock)
+        stock_qs = FinishedStock.objects.filter(
+            is_active=True
+        ).values('product_id').annotate(total=Sum('quantity'))
+        stock_map = {item['product_id']: item['total'] for item in stock_qs}
+
+        # 3. Bulk inventory (Inventory)
+        inv_qs = Inventory.objects.filter(
+            is_active=True, quantity__gt=0
+        ).values('product_id', 'service_category').annotate(total=Sum('quantity'))
+        inv_map = defaultdict(dict)
+        for inv in inv_qs:
+            inv_map[inv['product_id']][inv['service_category']] = inv['total']
+
+        # 4. Bulk Work In Progress (Job Items)
+        wip_qs = JobItem.objects.filter(
+            job__status='IN_PROGRESS', 
+            quantity_received__lt=F('quantity_ordered')
+        ).values('product_id', 'job__service_category').annotate(
+            ordered=Sum('quantity_ordered'), 
+            received=Sum('quantity_received')
+        )
+        wip_map = defaultdict(lambda: defaultdict(int))
+        for wip in wip_qs:
+            wip_map[wip['product_id']][wip['job__service_category']] += (wip['ordered'] - wip['received'])
+
+        product_data = []
+
+        for p in products:
+            pid = p['id']
+            demand = demand_map.get(pid, 0)
+            stock = stock_map.get(pid, 0)
+            p_inv = inv_map.get(pid, {})
+            p_wip = dict(wip_map.get(pid, {}))
+
+            product_data.append({
+                'id': pid,
+                'product_type': p['product_type'],
+                'animal_type': p['animal_type'],
+                'size_category': p['size_category'],
+                'stock': stock,
+                'total_ordered': demand,
+                'inventory': p_inv,
+                'in_production': p_wip
+            })
+
+        # Artisan Workload
+        artisan_qs = JobItem.objects.filter(
+            job__status='IN_PROGRESS',
+            quantity_received__lt=F('quantity_ordered')
+        ).select_related('artisan', 'product', 'job')
+
+        workload_map = defaultdict(lambda: {'name': '', 'total_units': 0, 'items': []})
+        for item in artisan_qs:
+            pending_qty = item.quantity_ordered - item.quantity_received
+            if pending_qty <= 0:
+                continue
+
+            art_id = item.artisan.id
+            if not workload_map[art_id]['name']:
+                workload_map[art_id]['name'] = item.artisan.name
+                
+            workload_map[art_id]['total_units'] += pending_qty
+            
+            # Check if this artist already has an entry for this product + category
+            existing_item = next(
+                (i for i in workload_map[art_id]['items'] 
+                 if i['product_id'] == item.product.id and i['category'] == item.job.service_category),
+                None
+            )
+
+            if existing_item:
+                existing_item['quantity'] += pending_qty
+            else:
+                workload_map[art_id]['items'].append({
+                    'product_id': item.product.id,
+                    'category': item.job.service_category,
+                    'quantity': pending_qty
+                })
+
+        artisan_workload = sorted(list(workload_map.values()), key=lambda x: x['total_units'], reverse=True)
+
+        return Response({
+            'products': product_data,
+            'artisan_workload': artisan_workload
+        })
+
+    @action(detail=False, methods=['get'], url_path='comprehensive-reports')
+    def comprehensive_reports(self, request):
+        """
+        GET /api/jobs/comprehensive-reports/?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
+        Returns aggregated data for the reporting dashboard.
+        """
+        from datetime import datetime
+        from django.utils.timezone import make_aware
+
+        start_date_str = request.query_params.get('start_date')
+        end_date_str = request.query_params.get('end_date')
+
+        # Filter querysets based on dates
+        orders = OrderItem.objects.all()
+        deliveries = JobDelivery.objects.all()
+        job_items = JobItem.objects.all()
+
+        if start_date_str and end_date_str:
+            try:
+                # Use naive datetime and let Django handle the timezone based on USE_TZ
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+                end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+                
+                # Make end_date include the full day
+                if hasattr(datetime, "replace"):
+                   end_date = end_date.replace(hour=23, minute=59, second=59)
+
+                if getattr(settings, 'USE_TZ', False):
+                    start_date = make_aware(start_date)
+                    end_date = make_aware(end_date)
+                   
+                orders = orders.filter(order__created_date__range=[start_date, end_date])
+                deliveries = deliveries.filter(delivery_date__range=[start_date, end_date])
+                job_items = job_items.filter(job__created_date__range=[start_date, end_date])
+            except ValueError:
+                pass # Ignore invalid dates
+
+        # --- Summary Metrics ---
+        total_revenue = orders.annotate(
+            line_total=F('quantity') * F('unit_price')
+        ).aggregate(total=Sum('line_total'))['total'] or 0
+
+        production_volume = deliveries.aggregate(total=Sum('quantity_accepted'))['total'] or 0
+        total_received = deliveries.aggregate(total=Sum('quantity_received'))['total'] or 0
+        
+        quality_rate = (production_volume / total_received * 100) if total_received > 0 else 0
+
+        active_artisans = job_items.filter(quantity_received__lt=F('quantity_ordered'), job__status='IN_PROGRESS').values('artisan').distinct().count()
+
+        # --- Production by Product Category ---
+        prod_by_category = deliveries.values(
+            category_name=F('job_item__product__product_type')
+        ).annotate(
+            value=Sum('quantity_accepted')
+        ).order_by('-value')[:5]
+
+        # --- Top Artisans ---
+        top_artisans = job_items.values(
+            name=F('artisan__name')
+        ).annotate(
+            items=Sum('quantity_accepted'),
+            total_received=Sum('quantity_received'),
+            value=Sum('final_payment')
+        ).filter(items__gt=0).order_by('-items')[:5]
+
+        artisan_data = []
+        for a in top_artisans:
+            rate = (a['items'] / a['total_received'] * 100) if a['total_received'] and a['total_received'] > 0 else 0
+            artisan_data.append({
+                'name': a['name'],
+                'items': a['items'],
+                'quality': f"{rate:.1f}%",
+                'value': a['value'] or 0
+            })
+
+        # --- Financial / Revenue ---
+        revenue_by_category = orders.values(
+            category_name=F('product__product_type')
+        ).annotate(
+            value=Sum(F('quantity') * F('unit_price'), output_field=DecimalField(max_digits=20, decimal_places=2))
+        ).order_by('-value')[:5]
+
+        # Real cost estimation using final_payment from job items for those product categories
+        cost_by_category = job_items.filter(
+            quantity_accepted__gt=0
+        ).values(
+            category_name=F('product__product_type')
+        ).annotate(
+            total_cost=Sum('final_payment', output_field=DecimalField(max_digits=20, decimal_places=2))
+        )
+        cost_map = {item['category_name']: float(item['total_cost'] or 0) for item in cost_by_category}
+
+        # Financial Summary Table
+        fin_sum_data = []
+        for fs in revenue_by_category:
+            cat_name = fs['category_name']
+            revenue = float(fs['value'] or 0)
+            cost = cost_map.get(cat_name, 0.0)
+            margin_pct = ((revenue - cost) / revenue * 100) if revenue > 0 else 0
+            
+            fin_sum_data.append({
+                'category': cat_name,
+                'revenue': revenue,
+                'cost': cost,
+                'margin': f"{margin_pct:.1f}%"
+            })
+
+        # --- Quality ---
+        total_rejected = total_received - production_volume
+        quality_metrics = [
+            {'label': 'Accepted', 'value': float(f"{quality_rate:.1f}"), 'color': 'bg-green-500'},
+            {'label': 'Rejected', 'value': float(f"{100 - quality_rate:.1f}"), 'color': 'bg-red-500'}
+        ]
+
+        rejection_analysis = deliveries.filter(
+            rejection_reason__isnull=False,
+            quantity_received__gt=F('quantity_accepted')
+        ).annotate(
+            rejected_qty=F('quantity_received') - F('quantity_accepted'),
+            lost_value=Cast(F('quantity_received') - F('quantity_accepted'), output_field=DecimalField(max_digits=20, decimal_places=2)) * F('job_item__product__base_price')
+        ).values(
+            'rejection_reason'
+        ).annotate(
+            count=Sum('rejected_qty'),
+            impact=Sum('lost_value', output_field=DecimalField(max_digits=20, decimal_places=2))
+        ).order_by('-count')
+
+        rejection_data = []
+        for r in rejection_analysis:
+             r_count = r['count'] or 0
+             pct = (r_count / total_rejected * 100) if total_rejected > 0 else 0
+             impact = float(r['impact'] or 0)
+             
+             reason_display = dict(JobItem.REJECTION_REASONS).get(r['rejection_reason'], 'Unknown')
+
+             rejection_data.append({
+                 'reason': reason_display,
+                 'count': r_count,
+                 'percent': f"{pct:.0f}%",
+                 'impact': impact
+             })
+
+        # --- Trends ---
+        from django.db.models.functions import TruncMonth
+        trends = deliveries.annotate(
+            month=TruncMonth('delivery_date')
+        ).values('month').annotate(
+            value=Sum('quantity_accepted')
+        ).order_by('month')
+        
+        months_display = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        trend_data = []
+        for t in trends:
+            if t['month']:
+               trend_data.append({
+                   'month': months_display[t['month'].month - 1],
+                   'value': t['value'] or 0
+               })
+
+        return Response({
+            'summary': {
+                'total_revenue': float(total_revenue),
+                'production_volume': production_volume,
+                'quality_rate': float(f"{quality_rate:.1f}"),
+                'active_artisans': active_artisans
+            },
+            'production': {
+                'by_category': list(prod_by_category),
+                'top_artisans': artisan_data
+            },
+            'financial': {
+                'revenue_by_category': list(revenue_by_category),
+                'summary': fin_sum_data
+            },
+            'quality': {
+                'metrics': quality_metrics,
+                'rejections': rejection_data
+            },
+            'trends': {
+                'monthly': trend_data
+            }
+        })
 
     # --- Nested JobItem Actions ---
 

@@ -168,12 +168,14 @@ export interface ProductPrice {
 
 export interface JobItemPayload {
   artisan: number;
-  product_type: string;
-  animal_type: string;
-  size_category: string;
-  quantity: number;
-  unit_price: number;
-  total_price: number;
+  product: number; // Added product ID
+  quantity_ordered: number; // Renamed from quantity
+  // Optional fields for UI/Debugging
+  product_type?: string;
+  animal_type?: string;
+  size_category?: string;
+  unit_price?: number;
+  total_price?: number;
 }
 
 export interface CreateJobPayload {

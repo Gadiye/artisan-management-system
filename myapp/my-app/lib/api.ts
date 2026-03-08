@@ -189,6 +189,17 @@ export async function apiRequest<T>(endpoint: string, options: RequestInit & { r
     if (!response.ok) {
       let errorMessage = `HTTP error! status: ${response.status}`;
       const errorBody = await response.json();
+      const formatErrorValue = (value: any): string => {
+        if (Array.isArray(value)) {
+          return value.map(item => formatErrorValue(item)).join(', ');
+        } else if (typeof value === 'object' && value !== null) {
+          return Object.keys(value)
+            .map(k => `${k}: ${formatErrorValue(value[k])}`)
+            .join('; ');
+        }
+        return String(value);
+      };
+
       // Try to find a 'detail' field first
       if (errorBody.detail) {
         errorMessage = errorBody.detail;
@@ -198,11 +209,7 @@ export async function apiRequest<T>(endpoint: string, options: RequestInit & { r
         const fieldErrors = Object.keys(errorBody)
           .map(key => {
             const value = errorBody[key];
-            if (Array.isArray(value) && value.length > 0) {
-              return `${key}: ${value.join(', ')}`;
-            } else {
-              return `${key}: ${value}`; // For non-array values (e.g., if detail is directly mapped to a key)
-            }
+            return `${key}: ${formatErrorValue(value)}`;
           })
           .join('; ');
         if (fieldErrors) {

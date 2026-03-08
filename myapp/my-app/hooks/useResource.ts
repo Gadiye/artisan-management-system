@@ -35,6 +35,17 @@ export const useInventory = createResourceHook<InventoryItem>("/inventory/items/
 export const useProductsWithoutServiceRates = createResourceHook<Product>("/products/missing-service-rates/");
 export const useArtisansWithPendingPayments = createResourceHook<Artisan>("/artisans/with-pending-payments/");
 
+export function useProductionGuide() {
+  return useApi<any>("/jobs/production-guide/");
+}
+
+export function useReports(startDate?: string, endDate?: string) {
+  const query = new URLSearchParams()
+  if (startDate) query.append('start_date', startDate)
+  if (endDate) query.append('end_date', endDate)
+  return useApi<any>(`/jobs/comprehensive-reports/?${query.toString()}`);
+}
+
 export const usePendingPayslipItems = createResourceHook<JobItem>("/job-items/pending-payslip/");
 
 export function useArtisanPendingPayments(artisanId: number | null) {

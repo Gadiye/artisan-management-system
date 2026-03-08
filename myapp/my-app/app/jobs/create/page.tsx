@@ -312,7 +312,6 @@ export default function CreateJobPage() {
       total_price: totalPrice,
       original_amount: ratePerUnit, // Now represents the rate per unit
       service_rate_per_unit: ratePerUnit,
-      quantity: quantityToOrder,
       unit_price: ratePerUnit,
     };
 
@@ -402,10 +401,11 @@ export default function CreateJobPage() {
 
     const jobItemsPayload: JobItemPayload[] = jobItems.map(item => ({
       artisan: item.artisan,
+      product: item.product, // Required by backend
       product_type: item.product_type,
       animal_type: item.animal_type,
       size_category: item.size_category,
-      quantity: item.quantity_ordered,
+      quantity_ordered: item.quantity_ordered, // Required by backend
       unit_price: item.original_amount,
       total_price: item.total_price,
     }));

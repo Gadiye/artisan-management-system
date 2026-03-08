@@ -13,6 +13,9 @@ standalone_router.register(r'service-rates', ServiceRateViewSet, basename='servi
 urlpatterns = [
     # Main JobViewSet routes
     path('', JobViewSet.as_view({'get': 'list', 'post': 'create'}), name='job-list-create'),
+    path('dashboard/', JobViewSet.as_view({'get': 'dashboard'}), name='job-dashboard'),
+    path('production-guide/', JobViewSet.as_view({'get': 'production_guide'}), name='job-production-guide'),
+    path('comprehensive-reports/', JobViewSet.as_view({'get': 'comprehensive_reports'}), name='job-comprehensive-reports'),
     path('<str:job_id>/', JobViewSet.as_view({
         'get': 'retrieve',
         'put': 'update',
