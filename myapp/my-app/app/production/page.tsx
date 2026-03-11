@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Factory, Users, ClipboardList, ArrowRightIcon } from "lucide-react";
+import { PRODUCTION_STAGES } from '@/lib/constants';
 
 interface ProductionProduct {
     id: number;
@@ -21,14 +22,7 @@ interface ProductionProduct {
     in_production: Record<string, number>;
 }
 
-const STAGES = [
-    { key: 'DRAWING', label: 'Drawing' },
-    { key: 'CARVING', label: 'Carving' },
-    { key: 'CUTTING', label: 'Cutting' },
-    { key: 'SANDING', label: 'Sanding' },
-    { key: 'PAINTING', label: 'Painting' },
-    { key: 'FINISHING', label: 'Finishing' }
-];
+const STAGES = PRODUCTION_STAGES;
 
 export default function ProductionGuidePage() {
     const { data, loading, error } = useProductionGuide();

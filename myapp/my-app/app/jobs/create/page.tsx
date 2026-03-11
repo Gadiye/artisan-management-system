@@ -30,39 +30,14 @@ import { JobItemPayload, CreateJobPayload } from '@/lib/api/types';
 import { InventoryItem } from '@/types';
 import { useProductPrice } from '@/hooks/useProductPrice';
 
-// --- CONSTANTS ---
-const PRODUCT_TYPES = [
-  "SITTING_ANIMAL", "YOGA_BOWLS", "PER_DAY", "YOGA_ANIMALS", "CHOPSTICK_HOLDERS",
-  "STANDING_ANIMAL", "BOTTLE_CORKS", "SANTA_YOGA_BOWLS", "SANTA_YOGA_ANIMALS",
-  "HEAD_BOWLS", "DRINKING_BOWLS", "ANIMAL_MASKS", "CHOPSTICK_HEADS",
-  "CHESS_UNITS", "STOOL_SET", "SALAD_SERVERS_PAIR", "WALKING_ANIMAL",
-  "PLACE_CARD_HOLDER", "SANTA_ANIMALS", "SUGAR_SPOONS", "COCKTAIL_STICKS",
-  "KEY_HOLDERS", "FLAT_MAGNETS", "PLAY_ANIMALS", "TRAINING_CHOPSTICKS",
-  "CHOPSTICKS", "X_MAS_DECO", "FORKS", "BUTTER_KNIVES", "LETTER_OPENERS",
-  "JAM_SCOOPERS", "NAPKIN_HOLDERS", "HAIR_COMBS", "PAPER_WEIGHTS",
-]
-
-const SERVICE_CATEGORIES = ["CARVING", "CUTTING", "PAINTING", "SANDING", "FINISHING", "FINISHED"]
-
-const SIZE_CATEGORIES = [
-  "SMALL", "MEDIUM", "LARGE", "WITH CLOTHES", "WITH DRESS", "WITH SUIT",
-  "WITH OVERALL", "4IN", "8X8", "6X6", "5X4", "XMAS DRESS", "IN PAIRS", "12IN", "8IN", "N/A",
-  "2D", "3D", "SHORT", "LONG", "THIN TIP", "THICK TIP", "NORMAL", "BOTTOMS UP",
-]
-
-const ANIMAL_TYPES = [
-  "LION", "ZEBRA", "GIRAFFE", "DONKEY", "LEOPARD", "CHEETAH", "ELEPHANT",
-  "CAT", "HIPPO", "GAZELLE", "LIONESS", "BUFFALO", "RHINO", "GUINEA FOWL",
-  "GORILLA", "SAMPLE",
-]
-
-const PRODUCTION_CHAIN_MAP: { [key: string]: string[] } = {
-  'CUTTING': ['DRAWING'],
-  'SANDING': ['CUTTING', 'CARVING'],
-  'PAINTING': ['SANDING'],
-  'FINISHING': ['PAINTING'],
-  'FINISHED': ['FINISHING'],
-}
+// --- CONSTANTS (centralized) ---
+import {
+  PRODUCT_TYPES,
+  SERVICE_CATEGORIES,
+  SIZE_CATEGORIES,
+  ANIMAL_TYPES,
+  PRODUCTION_CHAIN_MAP,
+} from '@/lib/constants';
 
 // Function to generate a consistent color based on a string
 const getColorForString = (str: string) => {

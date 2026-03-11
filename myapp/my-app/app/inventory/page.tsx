@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useInventory } from '@/hooks/useResource';
 import { Product } from "@/types";
 import { TransactionHistoryModal } from "@/components/transaction-history-modal";
+import { SERVICE_STAGES, getStageColor } from '@/lib/constants';
 
 
 
@@ -32,19 +33,7 @@ interface EnrichedInventoryItem {
 
 
 
-const serviceStages = ["DRAWING", "CARVING", "CUTTING", "SANDING", "PAINTING", "FINISHED"]
 
-function getStageColor(stage: string) {
-  const colors: Record<string, string> = {
-    DRAWING: "bg-red-100 text-red-800",
-    CARVING: "bg-blue-100 text-blue-800",
-    CUTTING: "bg-orange-100 text-orange-800",
-    SANDING: "bg-yellow-100 text-yellow-800",
-    PAINTING: "bg-purple-100 text-purple-800",
-    FINISHED: "bg-green-100 text-green-800",
-  }
-  return colors[stage] || "bg-gray-100 text-gray-800"
-}
 
 function getErrorMessage(error: unknown): string {
   if (error && typeof error === 'object' && error instanceof Error) {
@@ -251,7 +240,7 @@ export default function InventoryPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Stages</SelectItem>
-                      {serviceStages.map((stage) => (
+                      {SERVICE_STAGES.map((stage) => (
                         <SelectItem key={stage} value={stage}>
                           {stage}
                         </SelectItem>
@@ -303,7 +292,7 @@ export default function InventoryPage() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right font-medium text-sm">
-                        {item.product.unit_of_measure === 'PAIRS' ? 
+                        {item.product.unit_of_measure === 'PAIRS' ?
                           (() => {
                             const pairs = Math.floor(item.quantity / 2);
                             const singles = item.quantity % 2;
@@ -319,7 +308,7 @@ export default function InventoryPage() {
                             }
                             return quantityDisplay || '0 items';
                           })()
-                          : 
+                          :
                           <>{item.quantity} items</>
                         }
                       </TableCell>

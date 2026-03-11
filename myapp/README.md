@@ -15,7 +15,7 @@ A full-stack production management platform for woodcraft businesses. Track arti
 | **Products** | Full product catalog with type/animal/size variants, pricing, and price history |
 | **Orders** | Customer order management with line items, status tracking, and fulfillment |
 | **Customers** | Customer profiles with contact details and order history |
-| **Financials** | Artisan advances, deductions, payslip generation (PDF via ReportLab), and service rate management |
+| **Financials** | Artisan advances, deductions, payslip generation (Excel via openpyxl), and service rate management |
 | **Pricing** | Hierarchical service rate configuration per product and service category |
 | **Production Guide** | Real-time demand vs. supply dashboard showing shortages, WIP, and artisan workload distribution |
 | **Reports & Analytics** | Dynamic reports with revenue, production volume, quality rates, rejection analysis, trends, and top artisan rankings |
@@ -49,6 +49,8 @@ myapp/
 │   ├── Dockerfile          #   Frontend container config
 │   └── package.json        #   Node dependencies
 ├── docker-compose.yml      # Container orchestration
+├── services.json           # Master config for service categories (Source of Truth)
+├── sync_services.py        # Script to synchronize config across back/frontend
 └── README.md
 ```
 
@@ -60,7 +62,7 @@ myapp/
 - **Framework:** Django 4.2 + Django REST Framework
 - **Database:** PostgreSQL (via `dj-database-url`)
 - **Filtering:** `django-filter` for query parameter filtering & search
-- **PDF Generation:** ReportLab for artisan payslips
+- **Spreadsheet Generation:** openpyxl for artisan payslips
 - **Static Files:** WhiteNoise
 - **CORS:** `django-cors-headers`
 
@@ -151,6 +153,34 @@ npm run dev
 ```
 
 The app will be available at `http://localhost:3000`.
+
+---
+
+## ⚙️ Configuration Management
+
+### Syncing Service Categories
+
+The application uses a centralized configuration system to manage production stages (e.g., Carving, Painting). This ensures that adding or removing a category updates both the Django database validation and the Next.js UI components.
+
+**To update service categories:**
+
+1.  **Modify `services.json`** in the root directory:
+    - Add/remove stages.
+    - Update `label`, `color` (Tailwind classes), or `depends_on` (production flow).
+2.  **Run the sync script**:
+    ```bash
+    python sync_services.py
+    ```
+3.  **Apply Backend Migrations** (if keys were changed):
+    ```bash
+    cd appback
+    python manage.py makemigrations
+    python manage.py migrate
+    ```
+
+**What this script updates:**
+- **Backend:** `SERVICE_CATEGORIES` in `products`, `jobs`, and `inventory` models.
+- **Frontend:** `SERVICE_CATEGORIES`, `PRODUCTION_CHAIN_MAP`, and `STAGE_COLORS` in `my-app/lib/constants.ts`.
 
 ---
 

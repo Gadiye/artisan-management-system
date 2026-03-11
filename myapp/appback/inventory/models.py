@@ -10,8 +10,9 @@ class Inventory(models.Model):
             ('DRAWING', 'Drawing'),
             ('CARVING', 'Carving'),
             ('CUTTING', 'Cutting'),
-            ('PAINTING', 'Painting'),
+            ('GOUGING', 'Gouging'),
             ('SANDING', 'Sanding'),
+            ('PAINTING', 'Painting'),
             ('FINISHING', 'Finishing'),
             ('FINISHED', 'Finished'),
         ]

@@ -20,8 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useArtisans, usePayslips, useArtisansWithPendingPayments, useArtisanPendingPayments } from '@/hooks/useResource';
 import { api } from '@/lib/api';
 import { Artisan } from "@/types";
-
-const serviceCategories = ["CARVING", "CUTTING", "PAINTING", "SANDING", "FINISHING", "FINISHED"]
+import { SERVICE_CATEGORIES } from '@/lib/constants';
 
 export default function PayslipsPage() {
   const { data: artisans, loading: artisansLoading, error: artisansError } = useArtisans();
@@ -261,7 +260,7 @@ export default function PayslipsPage() {
                           <SelectValue placeholder="Choose a service category" />
                         </SelectTrigger>
                         <SelectContent>
-                          {serviceCategories.map((service) => (
+                          {SERVICE_CATEGORIES.map((service) => (
                             <SelectItem key={service} value={service}>
                               {service}
                             </SelectItem>
