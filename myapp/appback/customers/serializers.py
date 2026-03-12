@@ -23,7 +23,7 @@ class CustomerSerializer(serializers.ModelSerializer):
     """
     total_orders = serializers.IntegerField(read_only=True)
     total_spent = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
-    last_order_date = serializers.DateField(read_only=True)
+    last_order_date = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = Customer

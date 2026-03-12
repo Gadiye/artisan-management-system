@@ -267,7 +267,16 @@ export default function CreateJobPage() {
       return;
     }
 
-    const totalPrice = ratePerUnit * quantityToOrder;
+    // Calculate total price based on unit of measure
+    let totalPrice = 0;
+    if (productPrice.unit_of_measure === 'PAIRS') {
+      const pairs = Math.floor(quantityToOrder / 2);
+      const singles = quantityToOrder % 2;
+      totalPrice = (pairs * ratePerUnit) + (singles * (ratePerUnit / 2));
+    } else {
+      totalPrice = ratePerUnit * quantityToOrder;
+    }
+
     const selectedArtisan = artisans?.find((a) => a.id === currentItem.artisanId);
 
     if (!selectedArtisan) {

@@ -52,7 +52,7 @@ export default function OrdersPage() {
   const processingOrders = safeOrders.filter((order) => order.status === "PROCESSING").length;
   const totalRevenue = safeOrders
     .filter((order) => order.status !== "CANCELLED")
-    .reduce((sum, order) => sum + order.total_amount, 0);
+    .reduce((sum, order) => sum + Number(order.total_amount || 0), 0);
 
   if (loading) {
     return (
@@ -156,7 +156,7 @@ export default function OrdersPage() {
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalRevenue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">Ksh{totalRevenue.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">From orders</p>
           </CardContent>
         </Card>
@@ -187,13 +187,13 @@ export default function OrdersPage() {
                   <TableCell className="font-medium">#{order.order_id}</TableCell>
                   <TableCell>
                     <div>
-                      <div className="font-medium">{order.customer}</div>
+                      <div className="font-medium">{order.customer?.name || "Unknown"}</div>
                       <div className="text-sm text-muted-foreground">{order.notes}</div>
                     </div>
                   </TableCell>
                   <TableCell>{new Date(order.created_date).toLocaleDateString()}</TableCell>
-                  <TableCell>{order.items.length} items</TableCell>
-                  <TableCell className="font-medium">${order.total_amount.toFixed(2)}</TableCell>
+                  <TableCell>{(order.items?.length || 0)} items</TableCell>
+                  <TableCell className="font-medium">Ksh{Number(order.total_amount || 0).toFixed(2)}</TableCell>
                   <TableCell>
                     <Badge variant={getStatusColor(order.status)} className="flex items-center gap-1 w-fit">
                       {getStatusIcon(order.status)}

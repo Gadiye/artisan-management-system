@@ -130,27 +130,22 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 product = item_data['product']
                 quantity = item_data['quantity']
 
-                # Stock validation before creating OrderItem
-                try:
-                    finished_stock = FinishedStock.objects.get(product=product)
-                    if finished_stock.quantity < quantity:
-                        raise serializers.ValidationError(
-                            f"Insufficient stock for {product.name}. Available: {finished_stock.quantity}, "
-                            f"Requested: {quantity}."
-                        )
-                except FinishedStock.DoesNotExist:
-                    raise serializers.ValidationError(f"Stock information not found for product: {product.name}")
-                if product.service_category != 'FINISHED':
-                    raise serializers.ValidationError(f"Product {product.name} is not a 'FINISHED' product type.")
-
-
                 # Create OrderItem - model's save method will set unit_price
                 order_item = OrderItem.objects.create(order=order, **item_data)
 
-                # Deduct stock if status is not PENDING
+                # Deduct stock ONLY if status is not PENDING
                 if status in ['PROCESSING', 'SHIPPED', 'DELIVERED']:
-                    finished_stock.quantity -= quantity
-                    finished_stock.save()
+                    try:
+                        finished_stock = FinishedStock.objects.get(product=product)
+                        if finished_stock.quantity < quantity:
+                            raise serializers.ValidationError(
+                                f"Insufficient stock for {product.name}. Available: {finished_stock.quantity}, "
+                                f"Requested: {quantity}."
+                            )
+                        finished_stock.quantity -= quantity
+                        finished_stock.save()
+                    except FinishedStock.DoesNotExist:
+                        raise serializers.ValidationError(f"Stock information not found for product: {product.name}")
 
             order.update_total_amount() # Call model method to calculate total
             return order

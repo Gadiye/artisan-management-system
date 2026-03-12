@@ -107,7 +107,7 @@ export interface Customer {
 
 export interface Order {
   order_id: number
-  customer: number
+  customer: Customer
   created_date: string
   status: "PENDING" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED"
   total_amount: number
@@ -118,7 +118,7 @@ export interface Order {
 export interface OrderItem {
   id: number
   order: number
-  product: number
+  product: Product
   quantity: number
   unit_price: number
   subtotal: number
