@@ -20,9 +20,6 @@ COPY . .
 # Expose the port your Django application will run on (e.g., 8000 for Django/Gunicorn)
 EXPOSE 8000
 
-# Command to run your Django application (e.g., with Gunicorn)
-# For local development with Django's runserver:
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
-# For production, uncomment the line below and make sure Gunicorn is in your requirements.txt
-# CMD ["gunicorn", "--bind", "0.0.0.0:8000", "appback.wsgi:application"]
+# Production: use Gunicorn (docker-compose overrides this with runserver for local dev)
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "appback.wsgi:application"]
 
