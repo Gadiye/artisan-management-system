@@ -101,18 +101,26 @@ REST_FRAMEWORK = {
 }
 
 # CORS settings (for frontend connections)
+# Default origins for local/Docker development
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:8080",
     "http://127.0.0.1:8080",
+    # Production frontend
+    "https://artisan-management.vercel.app",
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True  # Only for development
+# Add production origins from env var (comma-separated)
+# e.g. CORS_ALLOWED_ORIGINS_ENV=https://myapp-frontend.onrender.com,https://myapp.com
+_extra_origins = os.environ.get('CORS_ALLOWED_ORIGINS_ENV', '')
+if _extra_origins:
+    CORS_ALLOWED_ORIGINS += [origin.strip() for origin in _extra_origins.split(',') if origin.strip()]
+
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all origins in development
 
 # Media files (for payslip PDFs, etc.)
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Static files

@@ -118,49 +118,11 @@ class JobDelivery(models.Model):
         
         super().save(*args, **kwargs)
         
-        # Update JobItem totals
+        # Update JobItem totals (internal consistency)
         job_item.quantity_received = sum(d.quantity_received for d in job_item.deliveries.all())
         job_item.quantity_accepted = sum(d.quantity_accepted for d in job_item.deliveries.all())
         job_item.rejection_reason = self.rejection_reason if self.quantity_received > self.quantity_accepted else None
         job_item.save()
-        
-        # Update Inventory - import here to avoid circular imports
-        from inventory.models import Inventory, FinishedStock
-        
-        if self.quantity_accepted > 0:
-            JobTransaction.objects.create(
-                job=job_item.job,
-                product=job_item.product,
-                from_stage=job_item.job.service_category,
-                to_stage=job_item.job.service_category, # Or the next stage if you have that defined
-                quantity=self.quantity_accepted
-            )
-
-        if job_item.job.service_category == 'FINISHED':
-            finished_stock, created = FinishedStock.objects.get_or_create(
-                product=job_item.product,
-                defaults={'quantity': 0, 'average_cost': job_item.product.base_price}
-            )
-            finished_stock.quantity += self.quantity_accepted
-            finished_stock.average_cost = (
-                (finished_stock.quantity * finished_stock.average_cost + self.quantity_accepted * job_item.product.base_price)
-                / (finished_stock.quantity + self.quantity_accepted)
-            ) if (finished_stock.quantity + self.quantity_accepted) > 0 else job_item.product.base_price
-            finished_stock.save()
-        else:
-            inventory, created = Inventory.objects.get_or_create(
-                product=job_item.product,
-                service_category=job_item.job.service_category,
-                defaults={'quantity': 0, 'average_cost': job_item.product.base_price, 'price_at_this_stage': job_item.product.base_price}
-            )
-            inventory.quantity += self.quantity_accepted
-            new_average_cost = (
-                (inventory.quantity * inventory.average_cost + self.quantity_accepted * job_item.product.base_price)
-                / (inventory.quantity + self.quantity_accepted)
-            ) if (inventory.quantity + self.quantity_accepted) > 0 else job_item.product.base_price
-            inventory.average_cost = new_average_cost
-            inventory.price_at_this_stage = new_average_cost
-            inventory.save()
 
 
 class ServiceRate(models.Model):

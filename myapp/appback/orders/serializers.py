@@ -30,30 +30,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
         read_only_fields = ['unit_price', 'subtotal'] # unit_price is set by model's save method
 
     def validate(self, data):
-        # Validation for creating/updating OrderItem, especially stock
-        quantity = data.get('quantity')
-        product = data.get('product') # This comes from product_id in write operations
-
-        if self.instance: # If updating an existing OrderItem
-            original_quantity = self.instance.quantity
-            quantity_change = quantity - original_quantity
-        else: # If creating a new OrderItem
-            quantity_change = quantity
-
-        if product:
-            try:
-                finished_stock = FinishedStock.objects.get(product=product)
-                if finished_stock.quantity < quantity_change: # Check against the change
-                    raise serializers.ValidationError(
-                        f"Insufficient stock for {product.name}: {finished_stock.quantity} available, "
-                        f"need {quantity_change} more."
-                    )
-            except FinishedStock.DoesNotExist:
-                raise serializers.ValidationError(f"Stock information not found for product: {product.name}")
-
-            if product.service_category != 'FINISHED':
-                raise serializers.ValidationError(f"Product {product.name} is not a 'FINISHED' product type.")
-
+        # Validation for creating/updating OrderItem
+        # Stock check is mostly handled by OrderSerializer transition logic
         return data
 
 class OrderCreateUpdateItemSerializer(serializers.ModelSerializer):
@@ -66,10 +44,7 @@ class OrderCreateUpdateItemSerializer(serializers.ModelSerializer):
         fields = ['product_id', 'quantity']
 
     def validate(self, data):
-        # Basic validation, more complex stock validation handled in OrderSerializer create/update
-        product = data.get('product')
-        if product and product.service_category != 'FINISHED':
-            raise serializers.ValidationError(f"Product {product.name} is not a 'FINISHED' product type.")
+        # Basic validation
         return data
 
 
@@ -139,15 +114,15 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                         finished_stock = FinishedStock.objects.get(product=product)
                         if finished_stock.quantity < quantity:
                             raise serializers.ValidationError(
-                                f"Insufficient stock for {product.name}. Available: {finished_stock.quantity}, "
+                                f"Insufficient stock for {str(product)}. Available: {finished_stock.quantity}, "
                                 f"Requested: {quantity}."
                             )
                         finished_stock.quantity -= quantity
                         finished_stock.save()
                     except FinishedStock.DoesNotExist:
-                        raise serializers.ValidationError(f"Stock information not found for product: {product.name}")
+                        raise serializers.ValidationError(f"Stock information not found for product: {str(product)}")
 
-            order.update_total_amount() # Call model method to calculate total
+            order.update_totals(save=True) # Call model method to calculate total
             return order
 
 class OrderUpdateSerializer(serializers.ModelSerializer):
@@ -180,14 +155,14 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
                             finished_stock = FinishedStock.objects.get(product=item.product)
                             if finished_stock.quantity < item.quantity:
                                 raise serializers.ValidationError(
-                                    f"Insufficient stock for {item.product.name} "
+                                    f"Insufficient stock for {str(item.product)} "
                                     f"to fulfill order {instance.order_id} with new status: "
                                     f"{finished_stock.quantity} available, {item.quantity} needed."
                                 )
                             finished_stock.quantity -= item.quantity
                             finished_stock.save()
                         except FinishedStock.DoesNotExist:
-                            raise serializers.ValidationError(f"Stock information not found for product: {item.product.name}")
+                            raise serializers.ValidationError(f"Stock information not found for product: {str(item.product)}")
 
                 elif new_status == 'CANCELLED' and original_status not in ['PENDING', 'CANCELLED']:
                     # Transitioning to CANCELLED from a status where stock was deducted
@@ -198,7 +173,7 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
                             finished_stock.save()
                         except FinishedStock.DoesNotExist:
                             # Log this, but don't block cancel if stock model somehow disappeared
-                            print(f"Warning: Stock not found for {item.product.name} during cancellation of Order {instance.order_id}")
+                            print(f"Warning: Stock not found for {str(item.product)} during cancellation of Order {instance.order_id}")
 
 
             # Update basic order fields
@@ -227,7 +202,7 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
                                 finished_stock = FinishedStock.objects.get(product=order_item.product)
                                 if finished_stock.quantity < quantity_change:
                                     raise serializers.ValidationError(
-                                        f"Insufficient stock for {order_item.product.name}. "
+                                        f"Insufficient stock for {str(order_item.product)}. "
                                         f"Available: {finished_stock.quantity}, Need: {quantity_change}."
                                     )
                                 finished_stock.quantity -= quantity_change
@@ -247,13 +222,13 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
                                 finished_stock = FinishedStock.objects.get(product=product)
                                 if finished_stock.quantity < quantity:
                                     raise serializers.ValidationError(
-                                        f"Insufficient stock for {product.name}. Available: {finished_stock.quantity}, "
+                                        f"Insufficient stock for {str(product)}. Available: {finished_stock.quantity}, "
                                         f"Requested: {quantity}."
                                     )
                                 finished_stock.quantity -= quantity
                                 finished_stock.save()
                             except FinishedStock.DoesNotExist:
-                                raise serializers.ValidationError(f"Stock information not found for product: {product.name}")
+                                raise serializers.ValidationError(f"Stock information not found for product: {str(product)}")
 
                         OrderItem.objects.create(order=instance, **item_data)
 
@@ -267,11 +242,11 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
                             finished_stock.quantity += item_to_remove.quantity # Restore stock
                             finished_stock.save()
                         except FinishedStock.DoesNotExist:
-                            print(f"Warning: Stock not found for {item_to_remove.product.name} when removing item from Order {instance.order_id}")
+                            print(f"Warning: Stock not found for {str(item_to_remove.product)} when removing item from Order {instance.order_id}")
                     item_to_remove.delete()
 
 
-            instance.update_total_amount() # Recalculate total after item changes
+            instance.update_totals(save=True) # Recalculate total after item changes
 
             return instance
 

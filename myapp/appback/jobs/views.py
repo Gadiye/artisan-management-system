@@ -33,6 +33,9 @@ from products.models import Product
 from .filters import JobFilter, JobItemFilter
 
 
+from .services import record_job_delivery
+
+
 class JobPagination(PageNumberPagination):
     page_size = 300
     page_size_query_param = 'page_size'
@@ -548,12 +551,15 @@ class JobViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # --- Create Delivery and Update Parent ---
+        # --- Create Delivery and Update Parent via Service ---
         with transaction.atomic():
-            # Create the delivery record
-            delivery = serializer.save(job_item=job_item)
-            
-            
+            delivery = record_job_delivery(
+                job_item=job_item,
+                quantity_received=quantity_received,
+                quantity_accepted=serializer.validated_data.get('quantity_accepted', 0),
+                rejection_reason=serializer.validated_data.get('rejection_reason'),
+                notes=serializer.validated_data.get('notes')
+            )
 
             # Return the UPDATED JobItem, which is more useful for the frontend
             response_serializer = JobItemDetailListSerializer(job_item)
@@ -789,10 +795,19 @@ class JobDeliveryViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         with transaction.atomic():
             try:
-                delivery = serializer.save()
+                # Use the service to handle side effects
+                delivery = record_job_delivery(
+                    job_item=serializer.validated_data['job_item'],
+                    quantity_received=serializer.validated_data['quantity_received'],
+                    quantity_accepted=serializer.validated_data.get('quantity_accepted', 0),
+                    rejection_reason=serializer.validated_data.get('rejection_reason'),
+                    notes=serializer.validated_data.get('notes')
+                )
                 return delivery
             except ValueError as e:
-                return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+                # This might need to be handled differently in perform_create 
+                # as it's not expected to return a Response object
+                raise serializers.ValidationError({"detail": str(e)})
 
     def perform_update(self, serializer):
         with transaction.atomic():

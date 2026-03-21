@@ -15,10 +15,10 @@ class Order(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT)
     created_date = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
-    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, help_text="Total before discounts and taxes")
-    discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-    tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, help_text="Grand total after discounts and taxes")
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Total before discounts and taxes")
+    discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Grand total after discounts and taxes")
     notes = models.TextField(blank=True, null=True)
     
     def update_totals(self, save=False):
