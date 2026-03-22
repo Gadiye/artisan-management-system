@@ -206,6 +206,7 @@ export interface HierarchicalRate {
     Sanding?: number;
     Painting?: number;
     Cutting?: number;
+    Gouging?: number;
     Finishing?: number;
   }[];
 }
