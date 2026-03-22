@@ -7,7 +7,10 @@ SERVICES_JSON = 'services.json'
 BACKEND_PRODUCT_MODEL = 'appback/products/models.py'
 BACKEND_JOB_MODEL = 'appback/jobs/models.py'
 BACKEND_INVENTORY_MODEL = 'appback/inventory/models.py'
+BACKEND_JOB_SERIALIZER = 'appback/jobs/serializers.py'
 FRONTEND_CONSTANTS = 'my-app/lib/constants.ts'
+FRONTEND_TYPES = 'my-app/types/index.ts'
+FRONTEND_PRICING_PAGE = 'my-app/app/pricing/page.tsx'
 
 def load_services():
     with open(SERVICES_JSON, 'r') as f:
@@ -59,6 +62,26 @@ def update_backend_models(services):
         f.write(new_content)
     print(f"Updated {BACKEND_INVENTORY_MODEL}")
 
+def update_backend_serializers(services):
+    fields = ["    size = serializers.CharField()"]
+    for s in services:
+        if s['id'] == 'FINISHED': continue
+        field_name = s['id'].capitalize()
+        fields.append(f"    {field_name} = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)")
+    
+    fields_str = "\n".join(fields) + "\n"
+
+    with open(BACKEND_JOB_SERIALIZER, 'r') as f:
+        content = f.read()
+
+    # Match the class and its fields until the next class definition
+    pattern = r"(class RateDetailSerializer\(serializers\.Serializer\):\n\s+\"\"\"[^\"]*\"\"\"\n)(.*?)(?=\nclass)"
+    new_content = re.sub(pattern, rf"\1{fields_str}", content, flags=re.DOTALL)
+    
+    with open(BACKEND_JOB_SERIALIZER, 'w') as f:
+        f.write(new_content)
+    print(f"Updated {BACKEND_JOB_SERIALIZER}")
+
 def update_frontend_constants(services):
     # Prepare data
     service_categories = [s['id'] for s in services if s['id'] != 'DRAWING']
@@ -88,8 +111,44 @@ def update_frontend_constants(services):
         f.write(content)
     print(f"Updated {FRONTEND_CONSTANTS}")
 
+def update_frontend_types(services):
+    fields = ["    size: string;"]
+    for s in services:
+        if s['id'] == 'FINISHED': continue
+        field_name = s['id'].capitalize()
+        fields.append(f"    {field_name}?: number;")
+    
+    fields_str = "\n".join(fields) + "\n"
+
+    with open(FRONTEND_TYPES, 'r') as f:
+        content = f.read()
+
+    pattern = r"(export interface HierarchicalRate \{\n  product_category: string;\n  animal: string;\n  rates: \{\n)(.*?)(\s+\}\[\];\n\})"
+    new_content = re.sub(pattern, rf"\1{fields_str}\3", content, flags=re.DOTALL)
+    
+    with open(FRONTEND_TYPES, 'w') as f:
+        f.write(new_content)
+    print(f"Updated {FRONTEND_TYPES}")
+
+def update_frontend_pricing_page(services):
+    categories = [s['id'] for s in services if s['id'] != 'FINISHED']
+    categories_str = f"const serviceCategories = {json.dumps(categories)};"
+
+    with open(FRONTEND_PRICING_PAGE, 'r') as f:
+        content = f.read()
+
+    pattern = r"const serviceCategories = \[.*?\];"
+    new_content = re.sub(pattern, categories_str, content)
+    
+    with open(FRONTEND_PRICING_PAGE, 'w') as f:
+        f.write(new_content)
+    print(f"Updated {FRONTEND_PRICING_PAGE}")
+
 if __name__ == "__main__":
     services = load_services()
     update_backend_models(services)
+    update_backend_serializers(services)
     update_frontend_constants(services)
+    update_frontend_types(services)
+    update_frontend_pricing_page(services)
     print("\nSync Complete!")
