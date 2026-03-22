@@ -203,11 +203,12 @@ export interface HierarchicalRate {
     size: string;
     Drawing?: number;
     Carving?: number;
-    Sanding?: number;
-    Painting?: number;
     Cutting?: number;
     Gouging?: number;
+    Sanding?: number;
+    Painting?: number;
     Finishing?: number;
+
   }[];
 }
 

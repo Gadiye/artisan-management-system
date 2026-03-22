@@ -185,27 +185,25 @@ const AddServiceRateDialog = ({ refetchRates }: { refetchRates: () => void }) =>
   )
 };
 
-// Configuration for Sticky Columns
-const COLUMN_CONFIG = [
-  { id: 'category', label: 'Product Category', width: 160 },
-  { id: 'animal', label: 'Animal', width: 128 },
-  { id: 'size', label: 'Size', width: 96 },
-];
-
-// Calculate offsets for sticky positioning: [0, 160, 288]
-const STICKY_OFFSETS = COLUMN_CONFIG.reduce((acc: number[], _, i) => {
-  acc.push(i === 0 ? 0 : acc[i - 1] + COLUMN_CONFIG[i - 1].width);
-  return acc;
-}, []);
-
-const STYLES = {
-  // Sticky column cells style
-  stickyBase: "p-2 align-middle whitespace-nowrap sticky bg-background z-30 border-r border-b group-hover:bg-muted/50 transition-colors",
-  // Sticky header cells style
-  headerBase: "h-10 px-2 text-left align-middle font-medium border-r border-b bg-background sticky top-0 z-40 transition-shadow shadow-sm",
-};
-
 const ServiceRatesTable = ({ filteredRates }: { filteredRates: HierarchicalRate[] }) => {
+  const COLUMN_CONFIG = useMemo(() => [
+    { id: 'category', label: 'Product Category', width: 160 },
+    { id: 'animal', label: 'Animal', width: 128 },
+    { id: 'size', label: 'Size', width: 96 },
+  ], []);
+
+  const STICKY_OFFSETS = useMemo(() => COLUMN_CONFIG.reduce((acc: number[], _, i) => {
+    acc.push(i === 0 ? 0 : acc[i - 1] + COLUMN_CONFIG[i - 1].width);
+    return acc;
+  }, []), [COLUMN_CONFIG]);
+
+  const STYLES = useMemo(() => ({
+    // Sticky column cells style
+    stickyBase: "p-2 align-middle whitespace-nowrap sticky bg-background z-30 border-r border-b group-hover:bg-muted/50 transition-colors",
+    // Sticky header cells style
+    headerBase: "h-10 px-2 text-left align-middle font-medium border-r border-b bg-background sticky top-0 z-40 transition-shadow shadow-sm",
+  }), []);
+
   return (
     <Card>
       <CardHeader className="pb-4">

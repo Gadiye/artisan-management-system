@@ -249,10 +249,10 @@ class RateDetailSerializer(serializers.Serializer):
     size = serializers.CharField()
     Drawing = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
     Carving = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
-    Sanding = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
-    Painting = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
     Cutting = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
     Gouging = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    Sanding = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    Painting = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
     Finishing = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
 
 class HierarchicalServiceRateSerializer(serializers.Serializer):
