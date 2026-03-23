@@ -83,7 +83,7 @@ class JobItem(models.Model):
         output_field=models.DecimalField(max_digits=12, decimal_places=2),
         db_persist=True
     )
-    final_payment = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
+    final_payment = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0.00)
     payslip_generated = models.BooleanField(default=False)
     
     # Add rating field to support frontend rating display
@@ -99,31 +99,6 @@ class JobItem(models.Model):
     def save(self, *args, **kwargs):
         if not self.pk:  # Only on creation
             self.unit_price_at_creation = self.product.base_price
-
-        # Calculate final_payment based on fixed rate per unit for the job's service category
-        from django.core.exceptions import ObjectDoesNotExist
-
-        try:
-            service_rate = ServiceRate.objects.get(product=self.product, service_category=self.job.service_category)
-            # Calculate final_payment based on the new logic for individual items
-            from decimal import Decimal # Import Decimal
-
-            if self.product.unit_of_measure == 'PAIRS':
-                rate_per_pair = service_rate.rate_per_unit
-                rate_per_single = rate_per_pair / Decimal('2')
-
-                complete_pairs = self.quantity_accepted // 2
-                single_items = self.quantity_accepted % 2
-
-                payment = (Decimal(str(complete_pairs)) * rate_per_pair) + \
-                          (Decimal(str(single_items)) * rate_per_single)
-                self.final_payment = payment
-            else:  # ITEMS
-                self.final_payment = service_rate.rate_per_unit * Decimal(str(self.quantity_accepted))
-        except ObjectDoesNotExist:
-            # Handle case where no rate is defined for this product and service category
-            self.final_payment = 0.00 # Default to 0 if no rate found
-            # raise ValueError(f"No service rate defined for product {self.product.id} and category: {self.job.service_category}")
 
         super().save(*args, **kwargs)
 
