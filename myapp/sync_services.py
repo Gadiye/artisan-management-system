@@ -129,16 +129,6 @@ def update_frontend_types(services):
         f.write(new_content)
     print(f"Updated {FRONTEND_TYPES}")
 
-def update_frontend_pricing_page(services):
-    categories = [s['id'] for s in services if s['id'] != 'FINISHED']
-    categories_str = f"const serviceCategories = {json.dumps(categories)};"
-    with open(FRONTEND_PRICING_PAGE, 'r') as f:
-        content = f.read()
-    pattern = r"const serviceCategories = \[.*?\];"
-    new_content = re.sub(pattern, categories_str, content)
-    with open(FRONTEND_PRICING_PAGE, 'w') as f:
-        f.write(new_content)
-    print(f"Updated {FRONTEND_PRICING_PAGE}")
 
 def sync_all():
     services = load_services()
@@ -146,7 +136,6 @@ def sync_all():
     update_backend_serializers(services)
     update_frontend_constants(services)
     update_frontend_types(services)
-    update_frontend_pricing_page(services)
     print("\nSync Complete!")
 
 def add_service(args):

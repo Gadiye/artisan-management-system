@@ -16,9 +16,9 @@ import React, { useState, useMemo } from "react"
 import { Search } from 'lucide-react';
 import { HierarchicalRate } from '@/types';
 
-import { SERVICE_STAGES } from "@/lib/constants";
+import { SERVICE_CATEGORIES } from "@/lib/constants";
 
-const serviceCategories = ["DRAWING", "CARVING", "CUTTING", "GOUGING", "SANDING", "PAINTING", "FINISHING"];
+const serviceCategories = SERVICE_CATEGORIES;
 
 const AddServiceRateDialog = ({ refetchRates }: { refetchRates: () => void }) => {
   const { data: products } = useProductsWithoutServiceRates();

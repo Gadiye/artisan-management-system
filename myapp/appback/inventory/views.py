@@ -102,13 +102,19 @@ class UnifiedInventoryViewSet(viewsets.ModelViewSet):
             if Inventory.objects.filter(product=product, service_category='FINISHED').exists():
                 raise ValidationError("FinishedStock record for this product already exists.")
         
-        serializer.save(last_updated=timezone.now())
+        instance = serializer.save(last_updated=timezone.now())
+        # Explicit synchronization instead of signals
+        from .services import sync_finished_stock
+        sync_finished_stock(instance)
 
     def perform_update(self, serializer):
         if 'product' in serializer.validated_data or 'service_category' in serializer.validated_data:
             raise ValidationError("Cannot update product or service_category. Delete and recreate the record.")
         
-        serializer.save(last_updated=timezone.now())
+        instance = serializer.save(last_updated=timezone.now())
+        # Explicit synchronization instead of signals
+        from .services import sync_finished_stock
+        sync_finished_stock(instance)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -117,7 +123,10 @@ class UnifiedInventoryViewSet(viewsets.ModelViewSet):
                 {'error': 'Cannot delete inventory with non-zero quantity.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        self.perform_destroy(instance)
+        
+        # Explicit synchronization instead of signals
+        from .services import delete_inventory_and_sync
+        delete_inventory_and_sync(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['get'])

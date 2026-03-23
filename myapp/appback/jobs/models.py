@@ -101,6 +101,12 @@ class JobItem(models.Model):
             self.unit_price_at_creation = self.product.base_price
 
         super().save(*args, **kwargs)
+        self.job.update_status()
+
+    def delete(self, *args, **kwargs):
+        job = self.job
+        super().delete(*args, **kwargs)
+        job.update_status()
 
 class JobDelivery(models.Model):
     job_item = models.ForeignKey(JobItem, on_delete=models.CASCADE, related_name='deliveries')

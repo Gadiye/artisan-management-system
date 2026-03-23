@@ -210,6 +210,7 @@ export interface HierarchicalRate {
     Finishing?: number;
 
 
+
   }[];
 }
 
