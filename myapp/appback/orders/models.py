@@ -51,9 +51,11 @@ class OrderItem(models.Model):
     quantity = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     
-    @property
-    def subtotal(self):
-        return self.quantity * self.unit_price
+    subtotal = models.GeneratedField(
+        expression=models.F('quantity') * models.F('unit_price'),
+        output_field=models.DecimalField(max_digits=12, decimal_places=2),
+        db_persist=True
+    )
     
     def save(self, *args, **kwargs):
         # Set unit_price on creation if it's not already set

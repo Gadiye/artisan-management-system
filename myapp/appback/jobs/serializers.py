@@ -59,11 +59,25 @@ class JobItemCreateUpdateSerializer(serializers.ModelSerializer):
         current_service_category = job.service_category
 
         PRODUCTION_CHAIN_MAP = {
-            'CUTTING': ['DRAWING'],
-            'SANDING': ['CUTTING', 'CARVING'],
-            'PAINTING': ['SANDING'],
-            'FINISHING': ['PAINTING'],
-            'FINISHED': ['FINISHING'],
+            "CUTTING": [
+                        "DRAWING"
+            ],
+            "GOUGING": [
+                        "CUTTING"
+            ],
+            "SANDING": [
+                        "CUTTING",
+                        "CARVING"
+            ],
+            "PAINTING": [
+                        "SANDING"
+            ],
+            "FINISHING": [
+                        "PAINTING"
+            ],
+            "FINISHED": [
+                        "FINISHING"
+            ]
         }
 
         previous_categories_to_check = PRODUCTION_CHAIN_MAP.get(current_service_category)

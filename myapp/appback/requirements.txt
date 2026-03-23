@@ -1,7 +1,8 @@
-Django>=4.2,<5.0
+Django>=5.0,<6.0
 # Django REST Framework
 djangorestframework>=3.14,<4.0
 djangorestframework-camel-case>=1.2,<2.0
+django-fsm>=3.0.1
 
 # Filtering
 django-filter>=23.1,<24.0

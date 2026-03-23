@@ -53,16 +53,6 @@ class InventoryCreateSerializer(serializers.ModelSerializer):
         model = Inventory
         fields = ['product', 'service_category', 'quantity', 'average_cost']
     
-    def validate_service_category(self, value):
-        """
-        Validate that service_category is not FINISHED.
-        """
-        if value == 'FINISHED':
-            raise serializers.ValidationError(
-                "Cannot create inventory record for FINISHED service category."
-            )
-        return value
-    
     def validate_quantity(self, value):
         """
         Validate that quantity is non-negative.

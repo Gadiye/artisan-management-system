@@ -186,22 +186,37 @@ const AddServiceRateDialog = ({ refetchRates }: { refetchRates: () => void }) =>
 };
 
 const ServiceRatesTable = ({ filteredRates }: { filteredRates: HierarchicalRate[] }) => {
+  // 1. Centralized Layout Configuration
   const COLUMN_CONFIG = useMemo(() => [
-    { id: 'category', label: 'Product Category', width: 160 },
-    { id: 'animal', label: 'Animal', width: 128 },
-    { id: 'size', label: 'Size', width: 96 },
+    { id: 'product_category', label: 'Product Category', width: 160, group: true },
+    { id: 'animal', label: 'Animal', width: 128, group: true },
+    { id: 'size', label: 'Size', width: 96, group: false },
   ], []);
 
+  // 2. Pre-calculate sticky offsets: [0, 160, 288]
   const STICKY_OFFSETS = useMemo(() => COLUMN_CONFIG.reduce((acc: number[], _, i) => {
     acc.push(i === 0 ? 0 : acc[i - 1] + COLUMN_CONFIG[i - 1].width);
     return acc;
   }, []), [COLUMN_CONFIG]);
 
+  // 3. Flatten nested data for a clean, single-loop render
+  const rows = useMemo(() => (filteredRates || []).flatMap((group, gIdx) =>
+    group.rates.map((rate, rIdx) => ({ group, gIdx, rate, rIdx }))
+  ), [filteredRates]);
+
+  // 4. Pre-calculate category keys to avoid redundant string manipulation in the loop
+  const categoryMap = useMemo(() => serviceCategories.map(cat => ({
+    display: cat,
+    key: cat.charAt(0) + cat.slice(1).toLowerCase()
+  })), []);
+
   const STYLES = useMemo(() => ({
-    // Sticky column cells style
-    stickyBase: "p-2 align-middle whitespace-nowrap sticky bg-background z-30 border-r border-b group-hover:bg-muted/50 transition-colors",
-    // Sticky header cells style
-    headerBase: "h-10 px-2 text-left align-middle font-medium border-r border-b bg-background sticky top-0 z-40 transition-shadow shadow-sm",
+    container: "relative border rounded-lg overflow-hidden shrink-0",
+    scrollBox: "max-h-[750px] overflow-auto relative shadow-inner scrollbar-thin hover:scrollbar-thumb-muted-foreground/30 scrollbar-thumb-muted-foreground/20",
+    table: "w-full text-sm border-separate border-spacing-0",
+    stickyHeader: "h-10 px-2 text-left align-middle font-medium border-r border-b bg-background sticky top-0 z-40 transition-shadow shadow-sm",
+    stickyCell: "p-2 align-middle whitespace-nowrap sticky bg-background z-30 border-r border-b group-hover:bg-muted/50 transition-colors",
+    dataCell: "p-2 border-r border-b whitespace-nowrap text-right font-mono text-[13px]"
   }), []);
 
   return (
@@ -211,81 +226,69 @@ const ServiceRatesTable = ({ filteredRates }: { filteredRates: HierarchicalRate[
         <CardDescription>Rates paid to artisans for each unit of work completed</CardDescription>
       </CardHeader>
       <CardContent className="p-6">
-        <div className="relative border rounded-lg overflow-hidden shrink-0">
-          <div className="max-h-[750px] overflow-auto relative shadow-inner scrollbar-thin hover:scrollbar-thumb-muted-foreground/30 scrollbar-thumb-muted-foreground/20">
-            <table className="w-full text-sm border-separate border-spacing-0">
+        <div className={STYLES.container}>
+          <div className={STYLES.scrollBox}>
+            <table className={STYLES.table}>
               <thead>
                 <tr className="whitespace-nowrap">
                   {/* Dynamic Sticky Headers */}
                   {COLUMN_CONFIG.map((col, i) => (
                     <th
                       key={col.id}
-                      className={`${STYLES.headerBase} z-50`}
+                      className={`${STYLES.stickyHeader} z-50`}
                       style={{ left: STICKY_OFFSETS[i], minWidth: col.width, width: col.width }}
                     >
                       {col.label}
                     </th>
                   ))}
                   {/* Scrolling Headers */}
-                  {serviceCategories.map(cat => (
-                    <th key={cat} className={STYLES.headerBase} style={{ minWidth: 128 }}>
-                      {cat} (Ksh)
+                  {categoryMap.map(cat => (
+                    <th key={cat.display} className={STYLES.stickyHeader} style={{ minWidth: 128 }}>
+                      {cat.display} (Ksh)
                     </th>
                   ))}
                 </tr>
               </thead>
 
               <tbody className="[&_tr:last-child]:border-0 font-medium">
-                {filteredRates && filteredRates.length > 0 ? (
-                  filteredRates.map((group, gIdx) =>
-                    group.rates.map((rate, rIdx) => (
-                      <tr key={`${gIdx}-${rIdx}`} className="hover:bg-muted/30 group transition-colors">
-                        {/* Grouped Sticky Cells (Category & Animal) */}
-                        {rIdx === 0 && (
-                          <>
-                            <td
-                              rowSpan={group.rates.length}
-                              className={`${STYLES.stickyBase} font-semibold align-top text-primary/90`}
-                              style={{ left: STICKY_OFFSETS[0] }}
-                            >
-                              {group.product_category}
-                            </td>
-                            <td
-                              rowSpan={group.rates.length}
-                              className={`${STYLES.stickyBase} align-top text-muted-foreground`}
-                              style={{ left: STICKY_OFFSETS[1] }}
-                            >
-                              {group.animal}
-                            </td>
-                          </>
-                        )}
+                {rows.length > 0 ? rows.map(({ group, gIdx, rate, rIdx }) => (
+                  <tr key={`${gIdx}-${rIdx}`} className="hover:bg-muted/30 group transition-colors">
 
-                        {/* Individual Sticky Cell (Size) */}
-                        <td className={`${STYLES.stickyBase} text-muted-foreground/80`} style={{ left: STICKY_OFFSETS[2] }}>
-                          {rate.size}
+                    {/* STICKY COLUMNS: Handled by a unified configuration loop */}
+                    {COLUMN_CONFIG.map((col, i) => {
+                      const isFirstInGroup = rIdx === 0;
+                      if (col.group && !isFirstInGroup) return null;
+
+                      return (
+                        <td
+                          key={col.id}
+                          rowSpan={col.group ? group.rates.length : 1}
+                          className={`${STYLES.stickyCell} ${col.group ? 'font-semibold align-top text-primary/90' : 'text-muted-foreground/80'}`}
+                          style={{ left: STICKY_OFFSETS[i] }}
+                        >
+                          {(group as any)[col.id] || (rate as any)[col.id]}
                         </td>
+                      );
+                    })}
 
-                        {/* Data Cells (Scrollable) */}
-                        {serviceCategories.map(cat => {
-                          const key = cat.charAt(0) + cat.slice(1).toLowerCase();
-                          const val = (rate as Record<string, any>)[key];
-                          return (
-                            <td key={cat} className="p-2 border-r border-b whitespace-nowrap text-right font-mono">
-                              {val ? Number(val).toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2
-                              }) : "-"}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))
-                  )
-                ) : (
+                    {/* DATA COLUMNS (Scrollable) */}
+                    {categoryMap.map(cat => {
+                      const val = (rate as any)[cat.key];
+                      return (
+                        <td key={cat.display} className={STYLES.dataCell}>
+                          {val ? Number(val).toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                          }) : <span className="text-muted-foreground/30">–</span>}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                )) : (
                   <tr>
                     <td
-                      colSpan={serviceCategories.length + COLUMN_CONFIG.length}
-                      className="p-12 text-center text-muted-foreground bg-muted/5 font-medium"
+                      colSpan={COLUMN_CONFIG.length + serviceCategories.length}
+                      className="p-12 text-center text-muted-foreground italic bg-muted/5 font-medium"
                     >
                       No service rates found matching your criteria.
                     </td>

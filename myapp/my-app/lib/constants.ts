@@ -16,10 +16,10 @@ export const PRODUCT_TYPES = [
 ] as const;
 
 // --- Service Categories (work types assigned to artisans) ---
-export const SERVICE_CATEGORIES = ["CARVING", "CUTTING", "GOUGING", "SANDING", "PAINTING", "FINISHING", "FINISHED"] as const;
+export const SERVICE_CATEGORIES = ["DRAWING", "CARVING", "CUTTING", "GOUGING", "SANDING", "PAINTING", "FINISHING"] as const;
 
 // --- Service Stages (full production pipeline including DRAWING) ---
-export const SERVICE_STAGES = ["DRAWING", "CARVING", "CUTTING", "GOUGING", "SANDING", "PAINTING", "FINISHED"] as const;
+export const SERVICE_STAGES = ["DRAWING", "CARVING", "CUTTING", "GOUGING", "SANDING", "PAINTING", "FINISHING", "FINISHED"] as const;
 
 // --- Production Stages (with labels, for UI display) ---
 export const PRODUCTION_STAGES = [

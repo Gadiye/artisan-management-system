@@ -6,10 +6,18 @@ from .models import JobDelivery, JobTransaction
 def record_job_delivery(job_item, quantity_received, quantity_accepted, rejection_reason=None, notes=None):
     """
     Service function to record a job delivery and handle its side effects:
-    1. Update JobItem totals and status.
-    2. Create a JobTransaction record.
-    3. Update Inventory or FinishedStock with new quantities and average costs.
+    1. Validate quantity_received against remaining quantity.
+    2. Create the delivery record.
+    3. Update JobItem totals and status (via signals).
+    4. Create a JobTransaction record.
+    5. Update Inventory or FinishedStock with new quantities and average costs.
     """
+    # 1. Validation
+    current_received = sum(d.quantity_received for d in job_item.deliveries.all())
+    remaining = job_item.quantity_ordered - current_received
+    if quantity_received > remaining:
+        raise ValueError(f"Cannot receive {quantity_received} pieces; only {remaining} pieces remain to be delivered.")
+
     with transaction.atomic():
         # 1. Create the delivery record
         delivery = JobDelivery.objects.create(

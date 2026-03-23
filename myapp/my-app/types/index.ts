@@ -209,6 +209,7 @@ export interface HierarchicalRate {
     Painting?: number;
     Finishing?: number;
 
+
   }[];
 }
 

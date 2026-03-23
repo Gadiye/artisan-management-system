@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 from products.models import Product
 from artisans.models import Artisan
+from django_fsm import FSMField, transition
 
 class Job(models.Model):
     STATUS_CHOICES = [
@@ -16,22 +17,44 @@ class Job(models.Model):
     job_id = models.AutoField(primary_key=True)
     created_date = models.DateTimeField(default=timezone.now)
     created_by = models.CharField(max_length=100)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='IN_PROGRESS')
+    status = FSMField(default='IN_PROGRESS', choices=STATUS_CHOICES)
     service_category = models.CharField(max_length=50, choices=Product.SERVICE_CATEGORIES)
     notes = models.TextField(blank=True, null=True)
     
-    
-    
+    @transition(field=status, source='*', target='IN_PROGRESS')
+    def reset_to_in_progress(self):
+        pass
+
+    @transition(field=status, source='IN_PROGRESS', target='PARTIALLY_RECEIVED')
+    def mark_partially_received(self):
+        pass
+
+    @transition(field=status, source=['IN_PROGRESS', 'PARTIALLY_RECEIVED'], target='COMPLETED')
+    def mark_completed(self):
+        pass
+
     def update_status(self):
         total_ordered = sum(item.quantity_ordered for item in self.items.all())
         total_received = sum(item.quantity_received for item in self.items.all())
+        
+        old_status = self.status
+        new_status = 'IN_PROGRESS'
+        
         if total_received == 0:
-            self.status = 'IN_PROGRESS'
+            new_status = 'IN_PROGRESS'
         elif total_received < total_ordered:
-            self.status = 'PARTIALLY_RECEIVED'
+            new_status = 'PARTIALLY_RECEIVED'
         else:
-            self.status = 'COMPLETED'
-        self.save()
+            new_status = 'COMPLETED'
+            
+        if old_status != new_status:
+            if new_status == 'IN_PROGRESS':
+                self.reset_to_in_progress()
+            elif new_status == 'PARTIALLY_RECEIVED':
+                self.mark_partially_received()
+            elif new_status == 'COMPLETED':
+                self.mark_completed()
+            self.save()
     
     @property
     def artisans_involved(self):
@@ -54,7 +77,12 @@ class JobItem(models.Model):
     quantity_received = models.PositiveIntegerField(default=0)
     quantity_accepted = models.PositiveIntegerField(default=0)
     rejection_reason = models.CharField(max_length=20, choices=REJECTION_REASONS, blank=True, null=True)
-    original_amount = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
+    unit_price_at_creation = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0.00)
+    original_amount = models.GeneratedField(
+        expression=models.F('quantity_ordered') * models.F('unit_price_at_creation'),
+        output_field=models.DecimalField(max_digits=12, decimal_places=2),
+        db_persist=True
+    )
     final_payment = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
     payslip_generated = models.BooleanField(default=False)
     
@@ -70,7 +98,7 @@ class JobItem(models.Model):
     
     def save(self, *args, **kwargs):
         if not self.pk:  # Only on creation
-            self.original_amount = self.product.base_price * self.quantity_ordered
+            self.unit_price_at_creation = self.product.base_price
 
         # Calculate final_payment based on fixed rate per unit for the job's service category
         from django.core.exceptions import ObjectDoesNotExist
@@ -98,7 +126,6 @@ class JobItem(models.Model):
             # raise ValueError(f"No service rate defined for product {self.product.id} and category: {self.job.service_category}")
 
         super().save(*args, **kwargs)
-        self.job.update_status()
 
 class JobDelivery(models.Model):
     job_item = models.ForeignKey(JobItem, on_delete=models.CASCADE, related_name='deliveries')
@@ -109,20 +136,7 @@ class JobDelivery(models.Model):
     notes = models.TextField(blank=True, null=True)
     
     def save(self, *args, **kwargs):
-        # Validate quantity_received does not exceed remaining ordered quantity
-        job_item = self.job_item
-        current_received = sum(d.quantity_received for d in job_item.deliveries.all().exclude(pk=self.pk))
-        remaining = job_item.quantity_ordered - current_received
-        if self.quantity_received > remaining:
-            raise ValueError(f"Cannot receive {self.quantity_received} pieces; only {remaining} pieces remain to be delivered.")
-        
         super().save(*args, **kwargs)
-        
-        # Update JobItem totals (internal consistency)
-        job_item.quantity_received = sum(d.quantity_received for d in job_item.deliveries.all())
-        job_item.quantity_accepted = sum(d.quantity_accepted for d in job_item.deliveries.all())
-        job_item.rejection_reason = self.rejection_reason if self.quantity_received > self.quantity_accepted else None
-        job_item.save()
 
 
 class ServiceRate(models.Model):
