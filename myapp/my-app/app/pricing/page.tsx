@@ -15,11 +15,15 @@ import { useApi } from "@/hooks/useApi";
 import React, { useState, useMemo } from "react"
 import { Search } from 'lucide-react';
 import { HierarchicalRate } from '@/types';
-
+// ok i need to review the code and clean some of the bs reeeemminder !!!!
 import { SERVICE_CATEGORIES } from "@/lib/constants";
 
 const serviceCategories = SERVICE_CATEGORIES;
 
+
+
+
+// search dialog and adding service rates abit faulty needs fixing!!!!!
 const AddServiceRateDialog = ({ refetchRates }: { refetchRates: () => void }) => {
   const { data: products } = useProductsWithoutServiceRates();
   const [isOpen, setIsOpen] = useState(false);
@@ -184,7 +188,7 @@ const AddServiceRateDialog = ({ refetchRates }: { refetchRates: () => void }) =>
     </Dialog>
   )
 };
-
+// this controls the table layout and rendering 
 const ServiceRatesTable = ({ filteredRates }: { filteredRates: HierarchicalRate[] }) => {
   // 1. Centralized Layout Configuration
   const COLUMN_CONFIG = useMemo(() => [

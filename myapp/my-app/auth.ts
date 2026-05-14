@@ -2,7 +2,7 @@ import NextAuth from "next-auth"
 import { authConfig } from "./auth.config"
 import Credentials from "next-auth/providers/credentials"
 
-export const { auth, signIn, signOut, handlers } = NextAuth({
+const result = NextAuth({
     ...authConfig,
     providers: [
         Credentials({
@@ -56,3 +56,8 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
     session: { strategy: "jwt" },
     secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
 })
+
+export const auth = result?.auth
+export const signIn = result?.signIn
+export const signOut = result?.signOut
+export const handlers = result?.handlers

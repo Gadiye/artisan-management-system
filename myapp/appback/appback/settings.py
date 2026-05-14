@@ -71,7 +71,7 @@ TEMPLATES = [
 ]
 
 # Demo Mode configuration
-DEMO_MODE = os.environ.get('DEMO_MODE', 'False') == 'True'
+DEMO_MODE = os.environ.get('DEMO_MODE', 'False') == 'false'
 
 # Database
 db_url = os.environ.get('DEMO_DATABASE_URL') if DEMO_MODE else os.environ.get('DATABASE_URL')
