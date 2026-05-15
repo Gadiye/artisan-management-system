@@ -13,6 +13,9 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-fallback-key-for-dev'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
+# Demo Mode configuration
+DEMO_MODE = os.environ.get('DEMO_MODE', 'False').lower() == 'true'
+
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost 127.0.0.1 0.0.0.0 .onrender.com').split()
 
 # Application definition
@@ -71,12 +74,14 @@ TEMPLATES = [
 ]
 
 # Database
+db_url = os.environ.get('DEMO_DATABASE_URL') if DEMO_MODE else os.environ.get('DATABASE_URL')
+
 DATABASES = {
     'default': dj_database_url.config(
         conn_max_age=600,
         conn_health_checks=True,
         ssl_require=True,
-        default=os.environ.get('DATABASE_URL')
+        default=db_url
     )
 }
 
