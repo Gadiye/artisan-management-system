@@ -57,7 +57,5 @@ const result = NextAuth({
     secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
 })
 
-export const auth = result?.auth
-export const signIn = result?.signIn
-export const signOut = result?.signOut
-export const handlers = result?.handlers
+export const { GET, POST, auth, signIn, signOut } = result
+export const handlers = { GET, POST }

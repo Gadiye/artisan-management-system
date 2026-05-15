@@ -5,7 +5,7 @@ from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 from products.models import Product
 from artisans.models import Artisan
-from django_fsm import FSMField, transition
+from viewflow.fsm import State
 
 class Job(models.Model):
     STATUS_CHOICES = [
@@ -17,26 +17,82 @@ class Job(models.Model):
     job_id = models.AutoField(primary_key=True)
     created_date = models.DateTimeField(default=timezone.now)
     created_by = models.CharField(max_length=100)
-    status = FSMField(default='IN_PROGRESS', choices=STATUS_CHOICES)
+    
+    _status = models.CharField(
+        max_length=50,
+        choices=STATUS_CHOICES,
+        default='IN_PROGRESS',
+        db_column='status'
+    )
+    status = State(dict(STATUS_CHOICES), default='IN_PROGRESS')
+
+    @status.getter()
+    def _status_getter(self):
+        return self._status
+
+    @status.setter()
+    def _status_setter(self, value):
+        self._status = value
+
+    @status.on_success()
+    def _save_after_transition(self, descriptor, source, target, **kwargs):
+        self.save()
+    
     service_category = models.CharField(max_length=50, choices=Product.SERVICE_CATEGORIES)
     notes = models.TextField(blank=True, null=True)
     
-    @transition(field=status, source='*', target='IN_PROGRESS')
+    # Denormalized fields for performance
+    total_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    total_final_payment = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    
+    @status.transition(source=State.ANY, target='IN_PROGRESS')
     def reset_to_in_progress(self):
         pass
 
-    @transition(field=status, source='IN_PROGRESS', target='PARTIALLY_RECEIVED')
+    @status.transition(source='IN_PROGRESS', target='PARTIALLY_RECEIVED')
     def mark_partially_received(self):
         pass
 
-    @transition(field=status, source=['IN_PROGRESS', 'PARTIALLY_RECEIVED'], target='COMPLETED')
+    @status.transition(source=['IN_PROGRESS', 'PARTIALLY_RECEIVED'], target='COMPLETED')
     def mark_completed(self):
         pass
 
     def update_status(self):
-        total_ordered = sum(item.quantity_ordered for item in self.items.all())
-        total_received = sum(item.quantity_received for item in self.items.all())
+        # Calculate totals efficiently
+        from django.db.models import Sum, F, Case, When, DecimalField
+        from django.db.models.functions import Cast, Coalesce
+        from decimal import Decimal
+
+        # Get the service rate for each item in this job to calculate total_cost correctly
+        # We'll do this in a single query for efficiency
+        items_stats = self.items.aggregate(
+            total_ordered=Sum('quantity_ordered'),
+            total_received=Sum('quantity_received'),
+            total_final_payment=Sum('final_payment')
+        )
+
+        total_ordered = items_stats['total_ordered'] or 0
+        total_received = items_stats['total_received'] or 0
+        new_total_final_payment = items_stats['total_final_payment'] or Decimal('0.00')
+
+        # Recalculate total_cost based on current service rates
+        # This is more complex because it depends on product and job's service_category
+        total_cost_sum = Decimal('0.00')
+        from .models import ServiceRate
+        rates = ServiceRate.objects.filter(
+            product__in=self.items.values_list('product', flat=True),
+            service_category=self.service_category
+        ).values('product_id', 'rate_per_unit')
         
+        rate_map = {r['product_id']: r['rate_per_unit'] for r in rates}
+        
+        for item in self.items.all().select_related('product'):
+            rate = rate_map.get(item.product_id, Decimal('0.00'))
+            qty = Decimal(str(item.quantity_ordered))
+            if item.product.unit_of_measure == 'PAIRS':
+                qty = qty / Decimal('2')
+            total_cost_sum += qty * rate
+
         old_status = self.status
         new_status = 'IN_PROGRESS'
         
@@ -47,6 +103,15 @@ class Job(models.Model):
         else:
             new_status = 'COMPLETED'
             
+        # Update fields
+        changed = False
+        if self.total_cost != total_cost_sum:
+            self.total_cost = total_cost_sum
+            changed = True
+        if self.total_final_payment != new_total_final_payment:
+            self.total_final_payment = new_total_final_payment
+            changed = True
+
         if old_status != new_status:
             if new_status == 'IN_PROGRESS':
                 self.reset_to_in_progress()
@@ -54,6 +119,9 @@ class Job(models.Model):
                 self.mark_partially_received()
             elif new_status == 'COMPLETED':
                 self.mark_completed()
+            changed = True
+            
+        if changed:
             self.save()
     
     @property

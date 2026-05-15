@@ -11,7 +11,7 @@ class ServiceRateAdmin(admin.ModelAdmin):
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
     list_display = ('job_id', 'created_by', 'created_date', 'status', 'service_category')
-    list_filter = ('status', 'service_category', 'created_date')
+    list_filter = ('service_category', 'created_date')
     search_fields = ('job_id', 'created_by')
     readonly_fields = ('job_id',)
 

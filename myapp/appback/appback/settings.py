@@ -70,18 +70,13 @@ TEMPLATES = [
     },
 ]
 
-# Demo Mode configuration
-DEMO_MODE = os.environ.get('DEMO_MODE', 'False') == 'false'
-
 # Database
-db_url = os.environ.get('DEMO_DATABASE_URL') if DEMO_MODE else os.environ.get('DATABASE_URL')
-
 DATABASES = {
     'default': dj_database_url.config(
         conn_max_age=600,
         conn_health_checks=True,
         ssl_require=True,
-        default=db_url
+        default=os.environ.get('DATABASE_URL')
     )
 }
 
@@ -114,6 +109,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8080",
     # Production frontend
     "https://artisan-management.vercel.app",
+    "https://artisan-management-demo.vercel.app",
 ]
 
 # Add production origins from env var (comma-separated)

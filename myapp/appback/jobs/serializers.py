@@ -160,6 +160,12 @@ class JobItemDetailListSerializer(serializers.ModelSerializer):
         ]
 
     def get_service_rate_per_unit(self, obj):
+        # Use prefetched rates from context if available (optimized)
+        service_rates = self.context.get('service_rates')
+        if service_rates is not None:
+            return service_rates.get(obj.product_id)
+            
+        # Fallback to DB query if not in context
         from django.core.exceptions import ObjectDoesNotExist
         try:
             service_rate = ServiceRate.objects.get(product=obj.product, service_category=obj.job.service_category)

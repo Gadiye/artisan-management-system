@@ -37,9 +37,9 @@ from .services import record_job_delivery
 
 
 class JobPagination(PageNumberPagination):
-    page_size = 300
+    page_size = 50
     page_size_query_param = 'page_size'
-    max_page_size = 500
+    max_page_size = 100
 
 
 class JobViewSet(viewsets.ModelViewSet):
@@ -57,26 +57,22 @@ class JobViewSet(viewsets.ModelViewSet):
     lookup_field = 'job_id'
 
     def get_queryset(self):
-        queryset = Job.objects.all().order_by('-created_date')
-        if self.action in ['list', 'retrieve']:
-            service_rate_subquery = ServiceRate.objects.filter(
-                product=OuterRef('items__product'),
-                service_category=OuterRef('service_category')
-            ).values('rate_per_unit')[:1]
+        # Now uses denormalized fields for MUCH better performance
+        return Job.objects.all().order_by('-created_date')
 
-            adjusted_quantity = Case(
-                When(items__product__unit_of_measure='PAIRS', then=Cast(Coalesce(F('items__quantity_ordered'), 0), output_field=DecimalField(max_digits=10, decimal_places=2)) / 2),
-                default=Coalesce(F('items__quantity_ordered'), 0),
-                output_field=DecimalField(max_digits=10, decimal_places=2)
-            )
-
-            queryset = queryset.annotate(
-                total_cost=Sum(
-                    adjusted_quantity * Subquery(service_rate_subquery)
-                ),
-                total_final_payment=Sum('items__final_payment')
-            )
-        return queryset
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        # Prefetch service rates for the current category to avoid N+1 in serializer
+        from .models import ServiceRate
+        rates = ServiceRate.objects.filter(service_category=instance.service_category)
+        
+        # We can't easily use prefetch_related for this specific logic because of the category filter
+        # But we can pass them in context
+        serializer = self.get_serializer(instance, context={
+            'request': request,
+            'service_rates': {r.product_id: r.rate_per_unit for r in rates}
+        })
+        return Response(serializer.data)
 
     def get_serializer_class(self):
         if self.action == 'list':

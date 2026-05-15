@@ -26,7 +26,10 @@ export function RecordDeliveryDialog({ jobItem, refetchJob, disabled }: RecordDe
   const [acceptedSingles, setAcceptedSingles] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
   const [notes, setNotes] = useState("");
-  const { post } = useApi(`/jobs/${jobItem.job}/items/${jobItem.id}/deliveries/`);
+
+  // Only fetch when the dialog is open to avoid N+1 requests on list/detail pages
+  const endpoint = isOpen ? `/jobs/${jobItem.job}/items/${jobItem.id}/deliveries/` : null;
+  const { post } = useApi(endpoint);
 
   const handleSave = async () => {
     let finalQuantityReceived = 0;
