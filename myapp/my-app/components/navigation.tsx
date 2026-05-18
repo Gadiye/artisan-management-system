@@ -20,11 +20,13 @@ export function Navigation() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center">
         <div className="mr-4 hidden md:flex">
-          <Link href="/" className="mr-6 flex items-center space-x-2">
-            <Package className="h-6 w-6" />
-            <span className="hidden font-bold sm:inline-block">Artisan Management</span>
+          <Link href="/" className="mr-6 flex items-center space-x-2 group">
+            <div className="bg-blue-600 p-1.5 rounded-lg shadow-sm group-hover:scale-110 transition-transform duration-200">
+              <Package className="h-5 w-5 text-white" />
+            </div>
+            <span className="hidden font-extrabold tracking-tight text-gray-900 sm:inline-block">Artisan Management</span>
             {process.env.NEXT_PUBLIC_DEMO_MODE === 'true' && (
-              <span className="ml-2 rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-bold uppercase text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100">
+              <span className="ml-2 rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-bold uppercase text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100 border border-yellow-200">
                 Demo
               </span>
             )}

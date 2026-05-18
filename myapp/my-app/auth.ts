@@ -57,5 +57,5 @@ const result = NextAuth({
     secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
 })
 
-export const { GET, POST, auth, signIn, signOut } = result
-export const handlers = { GET, POST }
+export const { handlers, auth, signIn, signOut } = result
+export const { GET, POST } = handlers

@@ -10,9 +10,12 @@ export function useApi<T>(
   endpoint: string | null, // The API endpoint (URL) to fetch
   swrOptions?: any // Optional SWR configuration
 ) {
+  // Use a custom fetcher if provided in swrOptions, otherwise use the default
+  const activeFetcher = swrOptions?.fetcher || fetcher;
+
   // useSWR will automatically cache the data based on the endpoint key.
   // It returns the cached data immediately, then re-fetches in the background.
-  const { data, error, mutate, isLoading } = useSWR<T>(endpoint, fetcher, swrOptions);
+  const { data, error, mutate, isLoading } = useSWR<T>(endpoint, activeFetcher, swrOptions);
 
   const post = async (data: any) => {
     if (!endpoint) throw new Error('Endpoint is null');

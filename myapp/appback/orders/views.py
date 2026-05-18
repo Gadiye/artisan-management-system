@@ -40,10 +40,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return OrderListSerializer
         elif self.action == 'retrieve':
-            # Optionally include items based on query param
-            if self.request.query_params.get('include_items', 'false').lower() == 'true':
-                return OrderDetailSerializer
-            return OrderListSerializer # Use list serializer for less data by default
+            return OrderDetailSerializer
         elif self.action == 'create':
             return OrderCreateSerializer
         elif self.action in ['update', 'partial_update']:

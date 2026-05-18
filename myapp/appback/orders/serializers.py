@@ -50,13 +50,14 @@ class OrderCreateUpdateItemSerializer(serializers.ModelSerializer):
 
 class OrderListSerializer(serializers.ModelSerializer):
     customer = CustomerSerializer(read_only=True)
+    items = OrderItemSerializer(many=True, read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
 
     class Meta:
         model = Order
         fields = [
             'order_id', 'customer', 'created_date', 'status', 'status_display',
-            'total_amount', 'notes'
+            'total_amount', 'notes', 'items'
         ]
         read_only_fields = ['created_date', 'total_amount']
 

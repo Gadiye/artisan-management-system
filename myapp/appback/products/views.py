@@ -446,9 +446,9 @@ def get_price(request):
 
     try:
         product = Product.objects.get(
-            product_type=product_type,
-            animal_type=animal_type,
-            size_category=size_category,
+            product_type__iexact=product_type,
+            animal_type__iexact=animal_type,
+            size_category__iexact=size_category,
             is_active=True
         )
         

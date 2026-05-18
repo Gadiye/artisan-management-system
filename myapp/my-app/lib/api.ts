@@ -283,7 +283,7 @@ export const api = {
       apiRequest<PriceHistory[]>(`/products/${productId}/price-history/?${params?.toString() || ''}`),
     getMetadata: () => apiRequest<Record<string, unknown>>('/products/metadata/'),
     getPrice: (params: URLSearchParams) =>
-      apiRequest<{ price: number }>(`/products/get_price/?${params.toString()}`),
+      apiRequest<{ id: number; price: number; service_rate_per_unit?: number; unit_of_measure?: string }>(`/products/get_price/?${params.toString()}`),
   },
 
   // Artisans

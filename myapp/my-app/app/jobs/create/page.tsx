@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Calculator, Check, Loader2, AlertCircle } from "lucide-react";
+import { Plus, Trash2, Calculator, Check, Loader2, AlertCircle, Sparkles, FileSpreadsheet, Send, Copy, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -23,14 +23,12 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 
-// Import API hooks and types
 import { useArtisans, useInventory } from '@/hooks/useResource';
 import { useCreateJob } from '@/hooks/useCreateJob';
 import { JobItemPayload, CreateJobPayload } from '@/lib/api/types';
 import { InventoryItem } from '@/types';
 import { useProductPrice } from '@/hooks/useProductPrice';
 
-// --- CONSTANTS (centralized) ---
 import {
   PRODUCT_TYPES,
   SERVICE_CATEGORIES,
@@ -39,7 +37,6 @@ import {
   PRODUCTION_CHAIN_MAP,
 } from '@/lib/constants';
 
-// Function to generate a consistent color based on a string
 const getColorForString = (str: string) => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -47,24 +44,14 @@ const getColorForString = (str: string) => {
   }
 
   const colorCombos = [
-    "bg-blue-500 text-white border-blue-600",
-    "bg-green-500 text-white border-green-600",
-    "bg-yellow-500 text-gray-900 border-yellow-600",
-    "bg-red-500 text-white border-red-600",
-    "bg-purple-500 text-white border-purple-600",
-    "bg-indigo-500 text-white border-indigo-600",
-    "bg-pink-500 text-white border-pink-600",
-    "bg-orange-500 text-white border-orange-600",
-    "bg-teal-500 text-white border-teal-600",
-    "bg-cyan-500 text-white border-cyan-600",
-    "bg-lime-500 text-gray-900 border-lime-600",
-    "bg-fuchsia-500 text-white border-fuchsia-600",
-    "bg-rose-500 text-white border-rose-600",
-    "bg-emerald-500 text-white border-emerald-600",
-    "bg-violet-500 text-white border-violet-600",
-    "bg-amber-500 text-gray-900 border-amber-600",
-    "bg-sky-500 text-white border-sky-600",
-    "bg-slate-600 text-white border-slate-700",
+    "bg-blue-50/70 text-blue-700 border-blue-200 hover:bg-blue-100/70",
+    "bg-emerald-50/70 text-emerald-700 border-emerald-200 hover:bg-emerald-100/70",
+    "bg-amber-50/70 text-amber-800 border-amber-200 hover:bg-amber-100/70",
+    "bg-rose-50/70 text-rose-700 border-rose-200 hover:bg-rose-100/70",
+    "bg-purple-50/70 text-purple-700 border-purple-200 hover:bg-purple-100/70",
+    "bg-indigo-50/70 text-indigo-700 border-indigo-200 hover:bg-indigo-100/70",
+    "bg-sky-50/70 text-sky-700 border-sky-200 hover:bg-sky-100/70",
+    "bg-teal-50/70 text-teal-700 border-teal-200 hover:bg-teal-100/70",
   ];
 
   return colorCombos[Math.abs(hash) % colorCombos.length];
@@ -73,12 +60,12 @@ const getColorForString = (str: string) => {
 interface JobItemDisplay extends JobItemPayload {
   id: string;
   artisanName: string;
-  total_price: number; // Total price for this item
+  total_price: number;
   product_type: string;
   animal_type: string;
   size_category: string;
-  service_rate_per_unit?: number; // Add this new field
-  product: number; // product ID
+  service_rate_per_unit?: number;
+  product: number;
   quantity_ordered: number;
   original_amount: number;
 }
@@ -110,7 +97,7 @@ export default function CreateJobPage() {
     productType: "",
     animalType: "",
     sizeCategory: "",
-    quantity: "", // Default to 1 instead of 0
+    quantity: "",
     pairs: "",
     singles: "",
   });
@@ -124,8 +111,6 @@ export default function CreateJobPage() {
     if (sourceCategories) {
       filteredInventory = inventory.filter(item => item.service_category && sourceCategories.includes(item.service_category));
     } else {
-      // If no source categories are defined for the current serviceCategory,
-      // it means this stage consumes raw materials, so no intermediate inventory is available.
       filteredInventory = [];
     }
 
@@ -133,8 +118,8 @@ export default function CreateJobPage() {
 
     filteredInventory.forEach(item => {
       if (item.product && item.product.product_type && item.product.animal_type) {
-        const productType = item.product.product_type;
-        const animalType = item.product.animal_type;
+        const productType = item.product.product_type.toUpperCase();
+        const animalType = item.product.animal_type.toUpperCase();
 
         if (!groupedInventory[productType]) {
           groupedInventory[productType] = {};
@@ -148,7 +133,6 @@ export default function CreateJobPage() {
     return groupedInventory;
   }, [inventory, serviceCategory]);
 
-  // --- CACHING LOGIC ---
   const CACHE_KEY = "create-job-cache";
 
   useEffect(() => {
@@ -172,55 +156,22 @@ export default function CreateJobPage() {
     sessionStorage.setItem(CACHE_KEY, dataToCache);
   }, [serviceCategory, notes, jobItems, currentItem]);
 
-
-  // Enable the price query only when all required fields are filled
   const shouldFetchPrice = !!(
     currentItem.productType &&
     currentItem.animalType &&
     currentItem.sizeCategory &&
-    serviceCategory // serviceCategory is now required
+    serviceCategory
   );
 
   const { data: productPrice, loading: priceLoading, error: priceError } = useProductPrice(
     currentItem.productType,
     currentItem.animalType,
     currentItem.sizeCategory,
-    serviceCategory, // Pass serviceCategory
+    serviceCategory,
     { enabled: shouldFetchPrice }
   );
 
-  // Debug logging
-  useEffect(() => {
-    console.log("Current item state:", currentItem);
-    console.log("Service category:", serviceCategory);
-    console.log("Should fetch price:", shouldFetchPrice);
-    console.log("Product price data:", productPrice);
-    console.log("Price loading:", priceLoading);
-    console.log("Price error:", priceError);
-  }, [currentItem, serviceCategory, shouldFetchPrice, productPrice, priceLoading, priceError]);
-
-  // Debug logging for inventory display
-  useEffect(() => {
-    console.log("Inventory Loading:", inventoryLoading);
-    console.log("Inventory Error:", inventoryError);
-    console.log("Current Item Product Type:", currentItem.productType);
-    console.log("Current Item Animal Type:", currentItem.animalType);
-    console.log("Available Inventory (processed):", availableInventory);
-    console.log("Product Price Unit of Measure:", productPrice?.unit_of_measure);
-  }, [inventoryLoading, inventoryError, currentItem.productType, currentItem.animalType, availableInventory, productPrice?.unit_of_measure]);
-
   const addJobItem = () => {
-    console.log("Add item button clicked");
-    console.log("Validation checks:", {
-      artisanId: currentItem.artisanId,
-      productType: currentItem.productType,
-      animalType: currentItem.animalType,
-      serviceCategory: serviceCategory,
-      quantity: currentItem.quantity,
-      productPrice: productPrice,
-      productPriceId: productPrice?.id,
-    });
-
     if (!currentItem.artisanId) {
       alert("Please select an artisan");
       return;
@@ -260,14 +211,12 @@ export default function CreateJobPage() {
       return;
     }
 
-    // Use service_rate_per_unit for payment calculations, with fallback to base_price
     const ratePerUnit = productPrice.service_rate_per_unit ?? productPrice.price;
     if (typeof ratePerUnit !== 'number') {
       alert("Price or service rate not available for the selected options. Please ensure a rate is defined or a base price is set.");
       return;
     }
 
-    // Calculate total price based on unit of measure
     let totalPrice = 0;
     if (productPrice.unit_of_measure === 'PAIRS') {
       const pairs = Math.floor(quantityToOrder / 2);
@@ -294,12 +243,11 @@ export default function CreateJobPage() {
       size_category: currentItem.sizeCategory,
       quantity_ordered: quantityToOrder,
       total_price: totalPrice,
-      original_amount: ratePerUnit, // Now represents the rate per unit
+      original_amount: ratePerUnit,
       service_rate_per_unit: ratePerUnit,
       unit_price: ratePerUnit,
     };
 
-    console.log("Adding new item:", newItem);
     setJobItems([...jobItems, newItem]);
 
     const newRecentItem: RecentItem = {
@@ -308,7 +256,6 @@ export default function CreateJobPage() {
       sizeCategory: currentItem.sizeCategory,
     };
 
-    // Add to recent items, avoiding duplicates and limiting to 20
     const updatedRecentItems = [newRecentItem, ...recentItems.filter(
       item => !(item.productType === newRecentItem.productType &&
         item.animalType === newRecentItem.animalType &&
@@ -318,7 +265,6 @@ export default function CreateJobPage() {
     setRecentItems(updatedRecentItems);
     localStorage.setItem(RECENT_ITEMS_CACHE_KEY, JSON.stringify(updatedRecentItems));
 
-    // Reset form but keep artisan selected
     setCurrentItem({
       artisanId: currentItem.artisanId,
       productType: currentItem.productType,
@@ -336,7 +282,7 @@ export default function CreateJobPage() {
 
   const clearForm = () => {
     setCurrentItem({
-      artisanId: 0,
+      artisanId: currentItem.artisanId,
       productType: "",
       animalType: "",
       sizeCategory: "",
@@ -367,7 +313,6 @@ export default function CreateJobPage() {
   const totalItems = jobItems.reduce((sum, item) => sum + item.quantity_ordered, 0);
   const uniqueArtisansCount = new Set(jobItems.map((item) => item.artisan)).size;
 
-  // Check if button should be disabled - removed productPrice.id requirement
   const isAddButtonDisabled =
     !currentItem.artisanId ||
     !currentItem.productType ||
@@ -385,11 +330,11 @@ export default function CreateJobPage() {
 
     const jobItemsPayload: JobItemPayload[] = jobItems.map(item => ({
       artisan: item.artisan,
-      product: item.product, // Required by backend
+      product: item.product,
       product_type: item.product_type,
       animal_type: item.animal_type,
       size_category: item.size_category,
-      quantity_ordered: item.quantity_ordered, // Required by backend
+      quantity_ordered: item.quantity_ordered,
       unit_price: item.original_amount,
       total_price: item.total_price,
     }));
@@ -451,7 +396,6 @@ export default function CreateJobPage() {
       "Rate per Unit": item.original_amount,
       "Total Price": item.total_price,
     }));
-    // Dynamically import the xlsx library
     const XLSX = await import('xlsx');
     const ws = XLSX.utils.json_to_sheet(dataToExport);
     const wb = XLSX.utils.book_new();
@@ -461,7 +405,7 @@ export default function CreateJobPage() {
 
   if (artisansLoading) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto p-6 space-y-8 max-w-6xl">
         <Skeleton className="h-10 w-80 mb-6" />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
@@ -476,9 +420,9 @@ export default function CreateJobPage() {
 
   if (artisansError) {
     return (
-      <div className="container mx-auto p-6">
-        <Alert variant="destructive">
-          <AlertTitle>Error Loading Artisans</AlertTitle>
+      <div className="container mx-auto p-6 max-w-6xl">
+        <Alert variant="destructive" className="border-red-200 bg-red-50 text-red-950">
+          <AlertTitle>Error Loading Roster</AlertTitle>
           <AlertDescription>{artisansError}</AlertDescription>
         </Alert>
         <Button onClick={() => window.location.reload()} className="mt-4">Reload Page</Button>
@@ -487,78 +431,87 @@ export default function CreateJobPage() {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Create New Job</h1>
-        <p className="text-muted-foreground mt-2">Assign work to artisans and calculate payments</p>
+    <div className="container mx-auto p-6 max-w-6xl space-y-8 animate-in fade-in duration-300">
+      {/* Header */}
+      <div className="border-b pb-6">
+        <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">Create New Job</h1>
+        <p className="text-sm font-semibold text-muted-foreground mt-1">Assign work tasks to artisan teams and estimate production payroll piece-rates</p>
       </div>
 
       {createJobError && (
-        <Alert variant="destructive" className="mb-4">
+        <Alert variant="destructive" className="border-red-200 bg-red-50 text-red-950">
+          <AlertCircle className="h-4 w-4 text-red-600" />
           <AlertTitle>Error Creating Job</AlertTitle>
           <AlertDescription>{createJobError}</AlertDescription>
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        {/* Workspace Form inputs */}
         <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Job Details</CardTitle>
-              <CardDescription>Set up the basic job information</CardDescription>
+          <Card className="border-gray-200 shadow-sm overflow-hidden">
+            <CardHeader className="bg-gray-50/50 border-b pb-4">
+              <CardTitle className="text-base font-bold text-gray-900">Job Specification</CardTitle>
+              <CardDescription className="text-xs font-semibold">Define workflow stage and special instruction parameters</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="serviceCategory">Service Category *</Label>
+            <CardContent className="space-y-5 pt-6">
+              <div className="space-y-1.5">
+                <Label htmlFor="serviceCategory" className="text-xs font-bold uppercase text-gray-500 tracking-wider">Service Stage Category *</Label>
                 <Select value={serviceCategory} onValueChange={setServiceCategory}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select service category" />
+                  <SelectTrigger className="bg-white border-gray-300 font-medium text-sm h-11">
+                    <SelectValue placeholder="Select target production stage..." />
                   </SelectTrigger>
                   <SelectContent>
                     {SERVICE_CATEGORIES.map((service) => (
-                      <SelectItem key={service} value={service}>
+                      <SelectItem key={service} value={service} className="text-sm font-semibold">
                         {service}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  This is the type of work being assigned (e.g., CARVING, PAINTING)
+                <p className="text-[10px] text-muted-foreground font-semibold">
+                  This specifies the production stage being allocated (e.g. CARVING, SANDING, PAINTING)
                 </p>
               </div>
-              <div>
-                <Label htmlFor="notes">Notes (Optional)</Label>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="notes" className="text-xs font-bold uppercase text-gray-500 tracking-wider">Notes & Directions (Optional)</Label>
                 <Textarea
                   id="notes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Any special instructions or notes for this job..."
+                  placeholder="Enter custom instructions, quality control reminders, or deadline constraints..."
+                  className="border-gray-300 font-medium text-sm min-h-[90px] focus-visible:ring-offset-0 focus-visible:ring-indigo-500"
                 />
               </div>
-              <div className="flex items-center space-x-2">
+
+              <div className="flex items-center space-x-3 pt-3 border-t">
                 <Checkbox id="bypass-inventory" checked={bypassInventoryDeduction} onCheckedChange={(checked) => setBypassInventoryDeduction(checked === true)} />
-                <label
-                  htmlFor="bypass-inventory"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Bypass inventory deduction
-                </label>
+                <div className="grid gap-0.5 leading-none">
+                  <label
+                    htmlFor="bypass-inventory"
+                    className="text-xs font-extrabold text-gray-900 cursor-pointer uppercase tracking-wider"
+                  >
+                    Bypass Inventory Constraints
+                  </label>
+                  <p className="text-[10px] text-muted-foreground font-semibold">Allow assignment even if intermediate stage stocks are insufficient</p>
+                </div>
               </div>
             </CardContent>
           </Card>
 
           {recentItems.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Items</CardTitle>
-                <CardDescription>Click to pre-fill the form</CardDescription>
+            <Card className="border-gray-200 shadow-sm overflow-hidden">
+              <CardHeader className="bg-gray-50/50 border-b pb-4">
+                <CardTitle className="text-base font-bold text-gray-900">Recent Assignments</CardTitle>
+                <CardDescription className="text-xs font-semibold">Click a capsule tag below to quickly auto-populate the item selector</CardDescription>
               </CardHeader>
-              <CardContent className="flex flex-wrap gap-2">
+              <CardContent className="flex flex-wrap gap-2 pt-6">
                 {recentItems.map((item, index) => (
                   <Button
                     key={index}
                     variant="outline"
-                    className={getColorForString(item.productType)}
+                    className={`h-9 border font-semibold text-xs px-3.5 rounded-full transition-all duration-200 uppercase ${getColorForString(item.productType)}`}
                     onClick={() => {
                       setCurrentItem({
                         ...currentItem,
@@ -568,34 +521,34 @@ export default function CreateJobPage() {
                       });
                     }}
                   >
-                    {item.productType.replace(/_/g, " ")} / {item.animalType} / {item.sizeCategory.replace(/_/g, " ")}
+                    {item.productType.replace(/_/g, " ")} • {item.animalType} • {item.sizeCategory.replace(/_/g, " ")}
                   </Button>
                 ))}
               </CardContent>
             </Card>
           )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Add Job Items</CardTitle>
-              <CardDescription>Assign specific products to artisans</CardDescription>
+          <Card className="border-gray-200 shadow-sm overflow-hidden">
+            <CardHeader className="bg-gray-50/50 border-b pb-4">
+              <CardTitle className="text-base font-bold text-gray-900">Assign Job Items</CardTitle>
+              <CardDescription className="text-xs font-semibold">Associate specific product size profiles and quantities to craftsmen</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6 pt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="artisan">Artisan *</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="artisan" className="text-xs font-bold uppercase text-gray-500 tracking-wider">Select Artisan *</Label>
                   <Select
                     value={String(currentItem.artisanId)}
                     onValueChange={(value) => setCurrentItem({ ...currentItem, artisanId: Number.parseInt(value) })}
-                    disabled={artisansLoading || !!artisansError}>
-
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select artisan" />
+                    disabled={artisansLoading || !!artisansError}
+                  >
+                    <SelectTrigger className="bg-white border-gray-300 font-medium text-sm h-11">
+                      <SelectValue placeholder="Choose target artisan..." />
                     </SelectTrigger>
                     <SelectContent>
                       {artisans?.map((artisan) => (
                         artisan.id !== undefined && artisan.id !== null ? (
-                          <SelectItem key={artisan.id} value={artisan.id.toString()}>
+                          <SelectItem key={artisan.id} value={artisan.id.toString()} className="text-sm font-semibold">
                             {artisan.name}
                           </SelectItem>
                         ) : null
@@ -603,75 +556,72 @@ export default function CreateJobPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label htmlFor="productType">Product Type *</Label>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="productType" className="text-xs font-bold uppercase text-gray-500 tracking-wider">Product Category *</Label>
                   <Select
                     value={currentItem.productType}
                     onValueChange={(value) => setCurrentItem({ ...currentItem, productType: value })}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select product" />
+                    <SelectTrigger className="bg-white border-gray-300 font-medium text-sm h-11">
+                      <SelectValue placeholder="Choose product category..." />
                     </SelectTrigger>
                     <SelectContent>
                       {PRODUCT_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
+                        <SelectItem key={type} value={type} className="text-sm font-semibold">
                           {type.replace(/_/g, " ")}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label htmlFor="animalType">Animal Type *</Label>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="animalType" className="text-xs font-bold uppercase text-gray-500 tracking-wider">Animal Profile *</Label>
                   <Select
                     value={currentItem.animalType}
                     onValueChange={(value) => setCurrentItem({ ...currentItem, animalType: value })}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select animal" />
+                    <SelectTrigger className="bg-white border-gray-300 font-medium text-sm h-11">
+                      <SelectValue placeholder="Choose animal type..." />
                     </SelectTrigger>
                     <SelectContent>
                       {ANIMAL_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
+                        <SelectItem key={type} value={type} className="text-sm font-semibold">
                           {type}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label htmlFor="sizeCategory">Size Category</Label>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="sizeCategory" className="text-xs font-bold uppercase text-gray-500 tracking-wider">Size Segment *</Label>
                   <Select
                     value={currentItem.sizeCategory}
                     onValueChange={(value) => setCurrentItem({ ...currentItem, sizeCategory: value })}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
+                    <SelectTrigger className="bg-white border-gray-300 font-medium text-sm h-11">
+                      <SelectValue placeholder="Choose size category..." />
                     </SelectTrigger>
                     <SelectContent>
                       {SIZE_CATEGORIES.map((size) => (
-                        <SelectItem key={size} value={size}>
+                        <SelectItem key={size} value={size} className="text-sm font-semibold">
                           {size.replace(/_/g, " ")}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                {/* Inventory Availability Display */}
+
+                {/* Inventory Availability Info Box */}
                 <div className="md:col-span-2">
-                  {inventoryLoading ? (
-                    <Skeleton className="h-6 w-full" />
-                  ) : inventoryError ? (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>Inventory Error</AlertTitle>
-                      <AlertDescription>Could not load inventory data.</AlertDescription>
-                    </Alert>
-                  ) : (
-                    currentItem.productType && currentItem.animalType && (
-                      <div className="p-2 bg-muted rounded-lg text-sm">
-                        <p className="font-medium">Available Inventory:</p>
-                        <p className="text-muted-foreground">
+                  {currentItem.productType && currentItem.animalType && (
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-gray-700 animate-in fade-in duration-200 flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-indigo-500" />
+                      <span>
+                        Stage Stock:{" "}
+                        <strong className="text-gray-950 font-extrabold">
                           {(() => {
                             const totalAvailable = availableInventory[currentItem.productType]?.[currentItem.animalType] || 0;
                             if (productPrice?.unit_of_measure === 'PAIRS') {
@@ -682,21 +632,23 @@ export default function CreateJobPage() {
                               return `${totalAvailable} items`;
                             }
                           })()}
-                        </p>
-                      </div>
-                    )
+                        </strong>
+                      </span>
+                    </div>
                   )}
                 </div>
-                <div>
-                  <Label htmlFor="quantity">Quantity *</Label>
+
+                <div className="space-y-1.5 md:col-span-2">
+                  <Label htmlFor="quantity" className="text-xs font-bold uppercase text-gray-500 tracking-wider">Allocated Quantity *</Label>
                   {productPrice?.unit_of_measure === 'PAIRS' ? (
-                    <div className="flex gap-2">
+                    <div className="grid grid-cols-2 gap-4">
                       <Input
                         type="number"
                         min="0"
                         value={currentItem.pairs}
                         onChange={(e) => setCurrentItem({ ...currentItem, pairs: e.target.value })}
                         placeholder="Pairs"
+                        className="h-11 border-gray-300 font-extrabold text-sm"
                       />
                       <Input
                         type="number"
@@ -704,6 +656,7 @@ export default function CreateJobPage() {
                         value={currentItem.singles}
                         onChange={(e) => setCurrentItem({ ...currentItem, singles: e.target.value })}
                         placeholder="Singles"
+                        className="h-11 border-gray-300 font-extrabold text-sm"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
@@ -720,6 +673,8 @@ export default function CreateJobPage() {
                       min="1"
                       value={currentItem.quantity}
                       onChange={(e) => setCurrentItem({ ...currentItem, quantity: String(Math.max(1, Number.parseInt(e.target.value) || 1)) })}
+                      placeholder="Enter quantity amount..."
+                      className="h-11 border-gray-300 font-extrabold text-sm"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
@@ -731,108 +686,110 @@ export default function CreateJobPage() {
                     />
                   )}
                 </div>
-                <div className="flex flex-col gap-2">
-                  <Button
-                    onClick={addJobItem}
-                    className="w-full"
-                    disabled={isAddButtonDisabled}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Item
-                  </Button>
-                  <Button
-                    onClick={clearForm}
-                    className="w-full"
-                    variant="outline"
-                  >
-                    Clear
-                  </Button>
-                </div>
-              </div>
-
-              {/* Debug information */}
-              <div className="text-xs text-muted-foreground border p-2 rounded">
-                <p>Debug: Button disabled = {isAddButtonDisabled ? 'true' : 'false'}</p>
-                <p>Artisan ID: {currentItem.artisanId}</p>
-                <p>Product Price Available: {productPrice ? 'Yes' : 'No'}</p>
-                <p>Product Price ID: {productPrice?.id || 'Not available - using fallback'}</p>
-                <p>Product Price Value: {productPrice?.price || 'N/A'}</p>
               </div>
 
               {priceLoading && (
-                <div className="p-3 bg-muted rounded-lg flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm">Fetching price...</span>
+                <div className="p-3 bg-slate-50 border rounded-xl flex items-center gap-2 text-xs font-bold text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+                  <span>Retrieving piece-rate data from pricing index...</span>
                 </div>
               )}
 
               {priceError && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
+                <Alert variant="destructive" className="py-2.5 px-3 border-red-200 bg-red-50 text-red-950 text-xs">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
                   <AlertTitle>Price Error</AlertTitle>
                   <AlertDescription>{priceError}</AlertDescription>
                 </Alert>
               )}
 
-              {productPrice && (
-                <div className="p-3 bg-muted rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <Calculator className="h-4 w-4" />
-                    <span className="text-sm">
-                      Estimated unit price:{" "}
-                      <strong>
-                        ${productPrice.service_rate_per_unit?.toFixed(2) || 'N/A'}
+              {productPrice && !priceLoading && (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1 animate-in fade-in duration-200">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                    <Calculator className="h-4 w-4 text-emerald-500" />
+                    <span>
+                      Estimated Unit Rate:{" "}
+                      <strong className="text-sm font-extrabold text-emerald-600">
+                        Ksh {Number(productPrice.service_rate_per_unit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </strong>
+                      <span className="text-[10px] text-muted-foreground ml-1">({productPrice.unit_of_measure || 'EACH'})</span>
                     </span>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Product ID: {productPrice.id || 'Using fallback identifier'}
-                  </div>
+                  <p className="text-[10px] text-muted-foreground font-semibold ml-6">Product ID: {productPrice.id}</p>
                 </div>
               )}
+
+              <div className="flex gap-3 pt-6 border-t mt-6">
+                <Button
+                  onClick={addJobItem}
+                  disabled={isAddButtonDisabled}
+                  className="flex-1 h-11 font-bold text-xs uppercase px-5 shadow-md shadow-primary/20 hover:scale-[1.01]"
+                >
+                  <Plus className="mr-2 h-4 w-4 stroke-[3]" />
+                  Add Job Item
+                </Button>
+                <Button
+                  onClick={clearForm}
+                  variant="outline"
+                  className="h-11 px-4 text-xs font-bold uppercase border-gray-300"
+                >
+                  <RotateCcw className="mr-2 h-4 w-4 stroke-[2.5]" />
+                  Reset
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
           {jobItems.length > 0 && (
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+            <Card className="border-gray-200 shadow-sm overflow-hidden animate-in fade-in duration-200">
+              <CardHeader className="bg-gray-50/50 border-b pb-4 flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle>Job Items ({jobItems.length})</CardTitle>
-                  <CardDescription>Items assigned to this job</CardDescription>
+                  <CardTitle className="text-base font-bold text-gray-900">Assigned Job Items ({jobItems.length})</CardTitle>
+                  <CardDescription className="text-xs font-semibold">Active workload lines declared in compile queue</CardDescription>
                 </div>
-                <Button onClick={duplicateLastItem} variant="outline" size="sm" disabled={jobItems.length === 0}>
-                  Duplicate Last Item
+                <Button onClick={duplicateLastItem} variant="outline" size="sm" className="h-8 font-bold text-[10px] uppercase border-gray-300 px-3">
+                  <Copy className="mr-1.5 h-3.5 w-3.5" />
+                  Copy Last Item
                 </Button>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-0">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="bg-gray-50/30">
                     <TableRow>
-                      <TableHead>Artisan</TableHead>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Animal</TableHead>
-                      <TableHead>Size</TableHead>
-                      <TableHead>Qty</TableHead>
-                      <TableHead>Rate</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead></TableHead>
+                      <TableHead className="font-bold text-gray-700 text-xs pl-6">Artisan Profile</TableHead>
+                      <TableHead className="font-bold text-gray-700 text-xs">Product Details</TableHead>
+                      <TableHead className="font-bold text-gray-700 text-xs text-right">Qty</TableHead>
+                      <TableHead className="font-bold text-gray-700 text-xs text-right">Piece Rate</TableHead>
+                      <TableHead className="font-bold text-gray-700 text-xs text-right">Line Total</TableHead>
+                      <TableHead className="text-center pr-6"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {jobItems.sort((a, b) => a.product_type.localeCompare(b.product_type)).map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>{item.artisanName}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{item.product_type.replace(/_/g, " ")}</Badge>
+                      <TableRow key={item.id} className="hover:bg-slate-50/20 transition-colors">
+                        <TableCell className="font-extrabold text-sm pl-6 py-3.5 text-gray-950">{item.artisanName}</TableCell>
+                        <TableCell className="py-3.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-extrabold text-sm text-gray-950">{item.product_type.replace(/_/g, " ")}</span>
+                            <span className="text-[10px] font-bold text-muted-foreground">• {item.animal_type} • {item.size_category}</span>
+                          </div>
                         </TableCell>
-                        <TableCell>{item.animal_type}</TableCell>
-                        <TableCell>{item.size_category.replace(/_/g, " ")}</TableCell>
-                        <TableCell>{item.quantity_ordered}</TableCell>
-                        <TableCell>Ksh{typeof item.original_amount === 'number' ? item.original_amount.toFixed(2) : 'N/A'}</TableCell>
-                        <TableCell className="font-medium">Ksh{typeof item.total_price === 'number' ? item.total_price.toFixed(2) : 'N/A'}</TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="sm" onClick={() => removeJobItem(item.id)}>
-                            <Trash2 className="h-4 w-4" />
+                        <TableCell className="text-right font-bold text-xs text-gray-800 py-3.5">{item.quantity_ordered} pcs</TableCell>
+                        <TableCell className="text-right font-bold text-xs text-gray-600 py-3.5">
+                          Ksh {item.original_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell className="text-right font-black text-sm text-gray-950 py-3.5">
+                          Ksh {item.total_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell className="text-center pr-6 py-3.5">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeJobItem(item.id)}
+                            className="h-8 w-8 p-0 rounded-full border border-transparent hover:border-gray-200 hover:bg-gray-100 text-rose-600 transition-all flex items-center justify-center mx-auto"
+                            title="Remove Line"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -844,91 +801,102 @@ export default function CreateJobPage() {
           )}
         </div>
 
+        {/* Sticky Summary Card */}
         <div>
-          <Card className="sticky top-6">
-            <CardHeader>
-              <CardTitle>Job Summary</CardTitle>
-              <CardDescription>Review before creating</CardDescription>
+          <Card className="sticky top-6 border-gray-200 shadow-sm overflow-hidden">
+            <CardHeader className="bg-gray-50/50 border-b pb-4">
+              <CardTitle className="text-base font-bold text-gray-900">Job Summary</CardTitle>
+              <CardDescription className="text-xs font-semibold">Review parameters before compiling</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label className="text-sm font-medium">Service Category</Label>
-                <p className="text-sm text-muted-foreground">{serviceCategory || "Not selected"}</p>
+            <CardContent className="space-y-4 pt-6">
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Service Stage</Label>
+                <div className="font-extrabold text-sm text-gray-950">{serviceCategory || "— Not Specified —"}</div>
               </div>
 
-              <div>
-                <Label className="text-sm font-medium">Total Items</Label>
-                <p className="text-sm text-muted-foreground">{totalItems} pieces</p>
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium">Artisans Involved</Label>
-                <p className="text-sm text-muted-foreground">{uniqueArtisansCount} artisans</p>
-              </div>
-
-              <div className="pt-4 border-t">
-                <div className="flex justify-between items-center">
-                  <Label className="text-base font-medium">Total Job Value</Label>
-                  <span className="text-lg font-bold">Ksh{totalJobValue.toFixed(2)}</span>
+              <div className="grid grid-cols-2 gap-4 py-2 border-y border-gray-150">
+                <div className="space-y-0.5">
+                  <Label className="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Total Pieces</Label>
+                  <div className="font-extrabold text-sm text-gray-900">{totalItems} pcs</div>
+                </div>
+                <div className="space-y-0.5">
+                  <Label className="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Artisans</Label>
+                  <div className="font-extrabold text-sm text-gray-900">{uniqueArtisansCount} active</div>
                 </div>
               </div>
 
-              <Button
-                onClick={handleExport}
-                className="w-full mb-2"
-                variant="outline"
-                disabled={jobItems.length === 0}>
-                Export to Spreadsheet
-              </Button>
+              <div className="py-2">
+                <div className="flex justify-between items-center">
+                  <Label className="text-xs font-bold uppercase text-gray-500 tracking-wider">Cumulative Value</Label>
+                  <span className="text-xl font-black text-emerald-600">
+                    Ksh {totalJobValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
 
-              <Button
-                onClick={handleSubmit}
-                className="w-full"
-                disabled={jobItems.length === 0 || !serviceCategory || createJobLoading}
-              >
-                {createJobLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Job
-              </Button>
+              <div className="space-y-2 pt-4 border-t">
+                <Button
+                  onClick={handleExport}
+                  className="w-full h-11 font-bold text-xs uppercase px-4 border-gray-300 text-gray-700 hover:bg-gray-50"
+                  variant="outline"
+                  disabled={jobItems.length === 0}
+                >
+                  <FileSpreadsheet className="mr-2 h-4 w-4 text-muted-foreground" />
+                  Export to Spreadsheet
+                </Button>
+
+                <Button
+                  onClick={handleSubmit}
+                  className="w-full h-11 font-bold text-xs uppercase px-4 shadow-md shadow-primary/20 hover:scale-[1.01]"
+                  disabled={jobItems.length === 0 || !serviceCategory || createJobLoading}
+                >
+                  {createJobLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="mr-2 h-4 w-4 stroke-[2.5]" />
+                  )}
+                  {createJobLoading ? "Compiling Order..." : "Create Job"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
       </div>
 
+      {/* Success Dialog */}
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center">
-              <Check className="h-6 w-6 text-green-500 mr-2" />
-              Job Created Successfully
+        <DialogContent className="max-w-md border-gray-250 p-6 rounded-2xl shadow-xl">
+          <DialogHeader className="pb-3 border-b text-center sm:text-left">
+            <DialogTitle className="text-lg font-bold text-gray-900 flex items-center justify-center sm:justify-start gap-2">
+              <Check className="h-6 w-6 text-emerald-500 stroke-[3.5] bg-emerald-50 rounded-full p-1" />
+              Job Assigned Successfully
             </DialogTitle>
-            <DialogDescription>
-              Job #{newJobId} has been created with {jobItems.length} items.
+            <DialogDescription className="text-xs font-semibold text-muted-foreground mt-1">
+              Job record #{newJobId} has been added to active pipeline
             </DialogDescription>
           </DialogHeader>
 
-          <div className="p-4 bg-muted rounded-lg">
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm">Service Category:</span>
-                <span className="font-medium">{serviceCategory}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Total Items:</span>
-                <span className="font-medium">{totalItems} pieces</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Total Value:</span>
-                <span className="font-medium">Ksh{totalJobValue.toFixed(2)}</span>
-              </div>
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5 mt-4">
+            <div className="flex justify-between text-xs font-semibold text-gray-600">
+              <span>Service Category:</span>
+              <span className="font-extrabold text-gray-950">{serviceCategory}</span>
+            </div>
+            <div className="flex justify-between text-xs font-semibold text-gray-600">
+              <span>Total Volume:</span>
+              <span className="font-extrabold text-gray-950">{totalItems} pieces</span>
+            </div>
+            <div className="flex justify-between text-xs font-semibold text-gray-600">
+              <span>Payroll Est:</span>
+              <span className="font-black text-emerald-600">Ksh {totalJobValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
             </div>
           </div>
 
-          <DialogFooter className="flex flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={handleCreateAnother} className="sm:flex-1">
-              Create Another Job
+          <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-6 border-t mt-6">
+            <Button variant="outline" onClick={handleCreateAnother} className="h-11 px-4 text-xs font-bold uppercase sm:flex-1">
+              Assign Another
             </Button>
-            <Button onClick={handleViewJob} className="sm:flex-1">
-              View Job Details
+            <Button onClick={handleViewJob} className="h-11 px-5 text-xs font-bold uppercase sm:flex-1 shadow-md">
+              View details
             </Button>
           </DialogFooter>
         </DialogContent>

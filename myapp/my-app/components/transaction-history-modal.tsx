@@ -38,13 +38,15 @@ interface TransactionHistoryModalProps {
 }
 
 function useProductTransactions(productId: number | null) {
-  const { data, ...rest } = useApi<PaginatedResponse<Transaction>>(
+  const { data, ...rest } = useApi<any>(
     productId ? `/products/${productId}/transactions/` : null
   );
 
-  const transactions = data?.results;
+  const transactions = (data && typeof data === 'object' && 'results' in data)
+    ? data.results
+    : Array.isArray(data) ? data : undefined;
 
-  return { data: transactions, ...rest };
+  return { data: transactions as Transaction[] | undefined, ...rest };
 }
 
 export function TransactionHistoryModal({
