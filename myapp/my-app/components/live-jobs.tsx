@@ -37,7 +37,7 @@ export default function LiveJobs() {
             <p className="text-sm text-muted-foreground mt-1">{job.service_category_display} assigned to {job.artisans_involved.join(', ')}</p>
           </div>
           <div className="text-right">
-            <p className="font-medium">${job.total_cost}</p>
+            <p className="font-medium">Ksh {Number(job.total_cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             <p className="text-xs text-muted-foreground">Expected</p>
           </div>
         </div>

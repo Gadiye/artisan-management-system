@@ -74,14 +74,15 @@ TEMPLATES = [
 ]
 
 # Database
-db_url = os.environ.get('DEMO_DATABASE_URL') if DEMO_MODE else os.environ.get('DATABASE_URL')
+db_env_var = 'DEMO_DATABASE_URL' if DEMO_MODE else 'DATABASE_URL'
 
 DATABASES = {
     'default': dj_database_url.config(
+        env=db_env_var,
         conn_max_age=600,
         conn_health_checks=True,
         ssl_require=True,
-        default=db_url
+        default=os.environ.get(db_env_var)
     )
 }
 

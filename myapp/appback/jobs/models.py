@@ -15,7 +15,7 @@ class Job(models.Model):
     ]
     
     job_id = models.AutoField(primary_key=True)
-    created_date = models.DateTimeField(default=timezone.now)
+    created_date = models.DateTimeField(default=timezone.now, db_index=True)
     created_by = models.CharField(max_length=100)
     
     _status = models.CharField(
@@ -126,7 +126,8 @@ class Job(models.Model):
     
     @property
     def artisans_involved(self):
-        return list(self.items.values_list('artisan__name', flat=True).distinct())
+        # Read from memory to fully utilize prefetch_related cache and avoid N+1 queries
+        return list(set(item.artisan.name for item in self.items.all() if item.artisan))
 
     def __str__(self):
         return f"Job #{self.job_id}"
@@ -181,7 +182,7 @@ class JobDelivery(models.Model):
     quantity_received = models.PositiveIntegerField()
     quantity_accepted = models.PositiveIntegerField(default=0)
     rejection_reason = models.CharField(max_length=20, choices=JobItem.REJECTION_REASONS, blank=True, null=True)
-    delivery_date = models.DateTimeField(default=timezone.now)
+    delivery_date = models.DateTimeField(default=timezone.now, db_index=True)
     notes = models.TextField(blank=True, null=True)
     
     def save(self, *args, **kwargs):
@@ -217,7 +218,7 @@ class JobTransaction(models.Model):
     from_stage = models.CharField(max_length=50, choices=Product.SERVICE_CATEGORIES)
     to_stage = models.CharField(max_length=50, choices=Product.SERVICE_CATEGORIES)
     quantity = models.PositiveIntegerField()
-    timestamp = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         ordering = ['-timestamp']

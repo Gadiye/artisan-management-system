@@ -165,7 +165,14 @@ class JobItemDetailListSerializer(serializers.ModelSerializer):
         if service_rates is not None:
             return service_rates.get(obj.product_id)
             
-        # Fallback to DB query if not in context
+        # Use prefetched database cache if available (to prevent N+1 query loop in lists)
+        if hasattr(obj.product, '_prefetched_objects_cache') and 'job_service_rates' in obj.product._prefetched_objects_cache:
+            for rate in obj.product.job_service_rates.all():
+                if rate.service_category == obj.job.service_category:
+                    return rate.rate_per_unit
+            return None
+
+        # Fallback to DB query if not in context or prefetched cache
         from django.core.exceptions import ObjectDoesNotExist
         try:
             service_rate = ServiceRate.objects.get(product=obj.product, service_category=obj.job.service_category)

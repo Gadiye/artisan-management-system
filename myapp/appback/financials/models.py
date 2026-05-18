@@ -8,7 +8,7 @@ from products.models import Product
 class Payslip(models.Model):
     artisan = models.ForeignKey(Artisan, on_delete=models.PROTECT)
     service_category = models.CharField(max_length=50, choices=Product.SERVICE_CATEGORIES, blank=True, null=True)
-    generated_date = models.DateTimeField(auto_now_add=True)
+    generated_date = models.DateTimeField(auto_now_add=True, db_index=True)
     spreadsheet_file = models.FileField(upload_to='payslips/')
     total_payment = models.DecimalField(max_digits=12, decimal_places=2)
     total_advances_deducted = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -46,7 +46,7 @@ class ServiceRate(models.Model):
 class ArtisanAdvance(models.Model):
     artisan = models.ForeignKey(Artisan, on_delete=models.PROTECT, related_name='advances')
     amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
-    date_given = models.DateTimeField(auto_now_add=True)
+    date_given = models.DateTimeField(auto_now_add=True, db_index=True)
     reason = models.TextField(blank=True, null=True)
     is_settled = models.BooleanField(default=False)
     balance = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], editable=False)
@@ -68,7 +68,7 @@ class AdvanceDeduction(models.Model):
     advance = models.ForeignKey(ArtisanAdvance, on_delete=models.CASCADE, related_name='deductions')
     payslip = models.ForeignKey(Payslip, on_delete=models.SET_NULL, null=True, blank=True, related_name='advance_deductions')
     amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
-    date_deducted = models.DateTimeField(auto_now_add=True)
+    date_deducted = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         ordering = ['-date_deducted']

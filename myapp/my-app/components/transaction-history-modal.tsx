@@ -81,7 +81,7 @@ export function TransactionHistoryModal({
               <AlertDescription>{error.message}</AlertDescription>
             </Alert>
           )}
-          {transactions && (
+          {transactions && transactions.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -108,6 +108,11 @@ export function TransactionHistoryModal({
                 ))}
               </TableBody>
             </Table>
+          ) : transactions && (
+            <div className="text-center py-10 text-muted-foreground border rounded-lg bg-muted/20">
+              <p>No transactions found for this product.</p>
+              <p className="text-xs mt-1">Movement records are created when jobs are started or deliveries are accepted.</p>
+            </div>
           )}
         </div>
       </DialogContent>

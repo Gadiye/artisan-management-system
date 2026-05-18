@@ -57,8 +57,8 @@ class JobViewSet(viewsets.ModelViewSet):
     lookup_field = 'job_id'
 
     def get_queryset(self):
-        # Now uses denormalized fields for MUCH better performance
-        return Job.objects.all().order_by('-created_date')
+        # Prefetch items and artisans to completely eliminate the N+1 query bottleneck for 'artisans_involved'
+        return Job.objects.prefetch_related('items__artisan').all().order_by('-created_date')
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -152,7 +152,7 @@ class JobViewSet(viewsets.ModelViewSet):
 
         # 4. Bulk Work In Progress (Job Items)
         wip_qs = JobItem.objects.filter(
-            job__status='IN_PROGRESS', 
+            job___status='IN_PROGRESS', 
             quantity_received__lt=F('quantity_ordered')
         ).values('product_id', 'job__service_category').annotate(
             ordered=Sum('quantity_ordered'), 
@@ -184,7 +184,7 @@ class JobViewSet(viewsets.ModelViewSet):
 
         # Artisan Workload
         artisan_qs = JobItem.objects.filter(
-            job__status='IN_PROGRESS',
+            job___status='IN_PROGRESS',
             quantity_received__lt=F('quantity_ordered')
         ).select_related('artisan', 'product', 'job')
 
@@ -270,7 +270,7 @@ class JobViewSet(viewsets.ModelViewSet):
         
         quality_rate = (production_volume / total_received * 100) if total_received > 0 else 0
 
-        active_artisans = job_items.filter(quantity_received__lt=F('quantity_ordered'), job__status='IN_PROGRESS').values('artisan').distinct().count()
+        active_artisans = job_items.filter(quantity_received__lt=F('quantity_ordered'), job___status='IN_PROGRESS').values('artisan').distinct().count()
 
         # --- Production by Product Category ---
         prod_by_category = deliveries.values(
@@ -664,7 +664,7 @@ class JobItemViewSet(viewsets.ModelViewSet):
     Standalone ViewSet for JobItem resources.
     Provides direct access to JobItems across all jobs.
     """
-    queryset = JobItem.objects.all().select_related('artisan', 'product', 'job')
+    queryset = JobItem.objects.all().select_related('artisan', 'product', 'job').prefetch_related('product__job_service_rates')
     serializer_class = JobItemDetailListSerializer
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]

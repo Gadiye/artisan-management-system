@@ -49,7 +49,7 @@ class Artisan(models.Model):
         pending_sum = JobItem.objects.filter(
             artisan=self,
             payslip_generated=False,
-            job__status='COMPLETED'  # Only include completed jobs
+            job___status='COMPLETED'  # Only include completed jobs
         ).aggregate(Sum('final_payment'))['final_payment__sum']
         
         return float(pending_sum or 0)

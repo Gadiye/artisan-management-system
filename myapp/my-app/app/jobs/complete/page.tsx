@@ -57,6 +57,7 @@ export default function CompleteJobPage() {
 
   const [selectedJobId, setSelectedJobId] = useState("")
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null)
+  const [isSelectionExpanded, setIsSelectionExpanded] = useState(true)
   const [newDelivery, setNewDelivery] = useState<Delivery>({
     quantityReceived: 0,
     quantityAccepted: 0,
@@ -81,6 +82,7 @@ export default function CompleteJobPage() {
     setSelectedJobId(jobId)
     setSelectedItemId(null)
     resetDeliveryForm()
+    setIsSelectionExpanded(false)
   }
 
   const resetDeliveryForm = () => {
@@ -222,34 +224,152 @@ export default function CompleteJobPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          {/* Job Selection */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Select Job</CardTitle>
-              <CardDescription>Choose a job to record deliveries</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Select value={selectedJobId} onValueChange={handleJobSelect}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a job" />
-                </SelectTrigger>
-                <SelectContent>
-                  {safeJobs.map((job) => (
-                    <SelectItem key={job.job_id} value={job.job_id.toString()}>
-                      <div className="flex items-center justify-between w-full">
-                        <span>
-                          Job #{job.job_id} - {job.artisans_involved?.join(', ') || job.created_by}
-                        </span>
-                        <Badge className={`ml-2 ${getStatusColor(getJobStatus(job as unknown as JobWithDeliveries))}`}>
-                          {getJobStatus(job as unknown as JobWithDeliveries).replace("_", " ")}
-                        </Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </CardContent>
-          </Card>
+          {/* Job Selection Grid */}
+          {selectedJob && !isSelectionExpanded ? (
+            <Card className="border border-blue-150 bg-blue-50/20 shadow-sm">
+              <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-blue-650 text-white font-bold px-3 py-1.5 rounded text-sm font-mono shadow-sm">
+                    JOB #{selectedJob.job_id}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                      {selectedJob.service_category}
+                      <Badge className={`${getStatusColor(getJobStatus(selectedJob))} text-[10px] font-semibold uppercase tracking-wider py-0.5 px-1.5`}>
+                        {getJobStatus(selectedJob).replace("_", " ")}
+                      </Badge>
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5 font-medium">
+                      Artisans: {selectedJob.artisans_involved?.join(', ') || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+                  <div className="space-y-1 w-32">
+                    <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      <span>Progress</span>
+                      <span>
+                        {((selectedJob.items ?? []).reduce((sum, item) => sum + item.quantity_received, 0) / 
+                          Math.max(1, (selectedJob.items ?? []).reduce((sum, item) => sum + item.quantity_ordered, 0)) * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-1">
+                      <div
+                        className="bg-blue-650 h-1 rounded-full transition-all"
+                        style={{
+                          width: `${((selectedJob.items ?? []).reduce((sum, item) => sum + item.quantity_received, 0) / 
+                            Math.max(1, (selectedJob.items ?? []).reduce((sum, item) => sum + item.quantity_ordered, 0)) * 100)}%`
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="border-blue-200 text-blue-700 hover:bg-blue-50 font-semibold"
+                    onClick={() => setIsSelectionExpanded(true)}
+                  >
+                    🔄 Switch Job
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Select an Active Job</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Pick a woodcraft production workflow to view its status and log deliveries</p>
+                </div>
+                {selectedJob && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-xs font-semibold text-gray-600 hover:text-gray-900"
+                    onClick={() => setIsSelectionExpanded(false)}
+                  >
+                    Collapse Grid ✕
+                  </Button>
+                )}
+              </div>
+
+              {safeJobs.length === 0 ? (
+                <Card className="border-dashed">
+                  <CardContent className="p-8 text-center text-muted-foreground">
+                    No active production jobs found. Please create a job first.
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {safeJobs.map((job) => {
+                    const isSelected = selectedJobId === job.job_id.toString();
+                    const status = getJobStatus(job as unknown as JobWithDeliveries);
+                    const totalOrdered = (job.items ?? []).reduce((sum, item) => sum + item.quantity_ordered, 0);
+                    const totalReceived = (job.items ?? []).reduce((sum, item) => sum + item.quantity_received, 0);
+                    const overallProgress = totalOrdered > 0 ? (totalReceived / totalOrdered) * 100 : 0;
+
+                    return (
+                      <Card
+                        key={job.job_id}
+                        className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+                          isSelected
+                            ? "border-2 border-blue-600 bg-blue-50/40 shadow-sm ring-1 ring-blue-600/20"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                        onClick={() => handleJobSelect(job.job_id.toString())}
+                      >
+                        <CardHeader className="pb-2">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <span className="text-xs font-bold text-blue-600 font-mono">JOB #{job.job_id}</span>
+                              <CardTitle className="text-base font-bold mt-1 text-gray-900">
+                                {job.service_category || "Service Category"}
+                              </CardTitle>
+                            </div>
+                            <Badge className={`${getStatusColor(status)} font-medium`}>
+                              {status.replace("_", " ")}
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3 pb-4">
+                          <div className="text-xs text-muted-foreground">
+                            <span className="block font-semibold text-gray-700">Artisans Involved:</span>
+                            <span className="block mt-0.5 font-medium truncate text-gray-600" title={job.artisans_involved?.join(', ')}>
+                              {job.artisans_involved?.join(', ') || 'N/A'}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[11px] font-semibold text-muted-foreground">
+                              <span>Delivery Progress</span>
+                              <span>{overallProgress.toFixed(0)}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-1.5">
+                              <div
+                                className="bg-blue-600 h-1.5 rounded-full transition-all"
+                                style={{ width: `${overallProgress}%` }}
+                              ></div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-2 border-t text-xs">
+                            <span className="text-muted-foreground font-medium">
+                              Created {new Date(job.created_date).toLocaleDateString()}
+                            </span>
+                            <span className="font-bold text-blue-700">
+                              Ksh {Number(job.total_cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Job Items */}
           {selectedJob && (
@@ -263,44 +383,106 @@ export default function CompleteJobPage() {
                   {(selectedJob.items ?? []).map((item) => {
                     const remaining = getRemainingQuantity(item)
                     const completion = getCompletionPercentage(item)
+                    const rejected = item.quantity_received - item.quantity_accepted;
 
                     return (
                       <div
                         key={item.id}
-                        className={`p-4 border rounded-lg cursor-pointer transition-colors ${selectedItemId === item.id ? "border-blue-500 bg-blue-50" : "hover:bg-gray-50"
-                          }`}
+                        className={`p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
+                          selectedItemId === item.id 
+                            ? "border-blue-500 bg-blue-50/50 shadow-sm ring-1 ring-blue-500/20" 
+                            : "border-gray-200 hover:bg-gray-50/50"
+                        }`}
                         onClick={() => setSelectedItemId(item.id)}
                       >
-                        <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-start justify-between mb-4 pb-2 border-b border-gray-100">
                           <div>
-                            <Badge variant="outline">
+                            <Badge variant="outline" className="text-sm font-semibold py-0.5 px-2 bg-white">
                               {getProductDisplay(item.product)}
                             </Badge>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Artisan: {getArtisanDisplay(item.artisan)}
+                            <p className="text-xs text-muted-foreground mt-1.5">
+                              <span className="font-semibold text-gray-700">Artisan:</span> {getArtisanDisplay(item.artisan)}
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="font-medium">${(Number(item.original_amount) * item.quantity_accepted).toFixed(2)}</p>
-                            <p className="text-xs text-muted-foreground">Current payment</p>
+                            <p className="text-sm font-bold text-gray-900">
+                              Ksh {Number(item.final_payment || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Current Payment (Accepted)</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              Expected: Ksh {Number(item.original_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
                             {item.service_rate_per_unit !== undefined && (
-                              <p className="text-xs text-muted-foreground">Rate: ${item.service_rate_per_unit.toFixed(2)}/unit</p>
+                              <p className="text-[11px] text-muted-foreground">
+                                Rate: Ksh {Number(item.service_rate_per_unit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/unit
+                              </p>
                             )}
                           </div>
                         </div>
 
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span>
-                              Progress: {item.quantity_received}/{item.quantity_ordered}
-                            </span>
+                        <div className="space-y-3">
+                          <div className="flex justify-between text-xs font-semibold text-muted-foreground">
+                            <span>Fulfillment Progress</span>
                             <span>{completion.toFixed(0)}% complete</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${completion}%` }}></div>
+                            <div
+                              className={`h-2 rounded-full transition-all ${
+                                completion === 100 ? "bg-green-600" : "bg-blue-600"
+                              }`}
+                              style={{ width: `${completion}%` }}
+                            ></div>
                           </div>
-                          {remaining > 0 && (
-                            <p className="text-xs text-muted-foreground">{remaining} pieces remaining to deliver</p>
+
+                          {/* Metric breakdown grid */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 text-center text-xs">
+                            <div className="bg-gray-50 border border-gray-100 p-2 rounded">
+                              <span className="block text-muted-foreground font-medium">Ordered</span>
+                              <span className="block font-bold text-gray-900 text-sm mt-0.5">{item.quantity_ordered}</span>
+                            </div>
+                            <div className="bg-blue-50/50 border border-blue-100/50 p-2 rounded">
+                              <span className="block text-blue-700 font-medium">Received</span>
+                              <span className="block font-bold text-blue-950 text-sm mt-0.5">{item.quantity_received}</span>
+                            </div>
+                            <div className="bg-green-50/50 border border-green-100/50 p-2 rounded">
+                              <span className="block text-green-700 font-medium">Accepted</span>
+                              <span className="block font-bold text-green-950 text-sm mt-0.5">{item.quantity_accepted}</span>
+                            </div>
+                            <div className={`p-2 rounded border transition-colors ${
+                              rejected > 0 
+                                ? "bg-red-50 border-red-200 text-red-900" 
+                                : "bg-gray-50 border-gray-150 text-gray-500"
+                            }`}>
+                              <span className="block font-medium">Rejected</span>
+                              <span className={`block font-bold text-sm mt-0.5 ${rejected > 0 ? "text-red-700" : "text-gray-400"}`}>
+                                {rejected}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Alerts & Warning boxes for rejected items */}
+                          {rejected > 0 && (
+                            <div className="flex flex-col gap-1 text-xs bg-red-50 border border-red-150 p-2.5 rounded-md mt-2 text-red-800">
+                              <div className="flex items-center gap-1.5 font-bold">
+                                <span>⚠️</span>
+                                <span>{rejected} items were damaged or rejected</span>
+                              </div>
+                              {item.rejection_reason && (
+                                <p className="text-[11px] text-red-700/90 pl-5">
+                                  Reason reported: <span className="font-semibold">{item.rejection_reason.replace("_", " ")}</span>
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          {remaining > 0 ? (
+                            <p className="text-xs text-amber-600 font-medium flex items-center gap-1.5 mt-2">
+                              <span>⏳</span> {remaining} pieces remaining to deliver
+                            </p>
+                          ) : (
+                            <p className="text-xs text-green-600 font-medium flex items-center gap-1.5 mt-2">
+                              <span>✅</span> Fully delivered
+                            </p>
                           )}
                         </div>
                       </div>
@@ -495,13 +677,13 @@ export default function CompleteJobPage() {
                     <div className="flex justify-between">
                       <span className="text-sm">Total Cost:</span>
                       <span className="font-medium">
-                        ${selectedJob.total_cost?.toFixed(2) || "0.00"}
+                        Ksh {Number(selectedJob.total_cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm">Final Payment:</span>
                       <span className="font-medium text-green-600">
-                        ${selectedJob.total_final_payment?.toFixed(2) || "0.00"}
+                        Ksh {Number(selectedJob.total_final_payment || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                   </div>

@@ -155,7 +155,7 @@ export default function CustomerDetailPage() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Total Spent</span>
-                <span className="font-medium">${(customer.total_spent || 0).toFixed(2)}</span>
+                <span className="font-medium">Ksh {Number(customer.total_spent || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Last Order</span>
@@ -193,7 +193,7 @@ export default function CustomerDetailPage() {
                         <TableCell>
                           <Badge variant={order.status === 'DELIVERED' ? 'default' : 'secondary'}>{order.status}</Badge>
                         </TableCell>
-                        <TableCell className="text-right">${order.total_amount.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">Ksh {Number(order.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                       </TableRow>
                     ))
                   ) : (

@@ -62,7 +62,7 @@ export default function ReportsPage() {
                 <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${data?.summary?.total_revenue?.toLocaleString() || "0.00"}</div>
+                <div className="text-2xl font-bold">Ksh {data?.summary?.total_revenue?.toLocaleString() || "0.00"}</div>
               </CardContent>
             </Card>
 
@@ -149,7 +149,7 @@ export default function ReportsPage() {
                             <TableCell className="font-medium">{artisan.name}</TableCell>
                             <TableCell>{artisan.items}</TableCell>
                             <TableCell>{artisan.quality}</TableCell>
-                            <TableCell>${artisan.value?.toLocaleString()}</TableCell>
+                            <TableCell>Ksh {artisan.value?.toLocaleString()}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -193,8 +193,8 @@ export default function ReportsPage() {
                             <TableCell>
                               <Badge variant="outline">{fs.category}</Badge>
                             </TableCell>
-                            <TableCell>${fs.revenue?.toLocaleString()}</TableCell>
-                            <TableCell>${fs.cost?.toLocaleString()}</TableCell>
+                            <TableCell>Ksh {fs.revenue?.toLocaleString()}</TableCell>
+                            <TableCell>Ksh {fs.cost?.toLocaleString()}</TableCell>
                             <TableCell className="text-green-600">{fs.margin}</TableCell>
                           </TableRow>
                         ))}
@@ -239,7 +239,7 @@ export default function ReportsPage() {
                             <TableCell className="font-medium">{rej.reason}</TableCell>
                             <TableCell>{rej.count}</TableCell>
                             <TableCell>{rej.percent}</TableCell>
-                            <TableCell>${rej.impact}</TableCell>
+                            <TableCell>Ksh {Number(rej.impact || 0).toLocaleString()}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -349,7 +349,7 @@ function RevenueBarChart({ data }: { data: any[] }) {
         {formattedData.map((item, index) => (
           <div key={index} className="flex-1 text-center">
             <div className="text-[10px] font-medium truncate" title={item.label}>{item.label}</div>
-            <div className="text-xs text-muted-foreground">${item.value?.toLocaleString()}</div>
+            <div className="text-xs text-muted-foreground">Ksh {item.value?.toLocaleString()}</div>
           </div>
         ))}
       </div>
@@ -396,47 +396,107 @@ function QualityPieChart({ data }: { data: any[] }) {
 function TrendsLineChart({ data }: { data: any[] }) {
   if (!data || data.length === 0) return <div className="flex h-full items-center justify-center text-muted-foreground">No data available</div>;
 
-  const maxValue = Math.max(...data.map((item) => item.value), 1)
+  const maxValue = Math.max(...data.map((item) => item.value), 1);
   const minValue = 0;
-  const range = maxValue - minValue
+  const range = maxValue - minValue;
+
+  const padding = 25;
+  const chartHeight = 220;
+  const chartWidth = 500;
+
+  // Generate SVG coordinates
+  const points = data.map((item, index) => {
+    const x = padding + (index * (chartWidth - padding * 2)) / (data.length - 1 || 1);
+    const y = chartHeight - padding - ((item.value - minValue) / range) * (chartHeight - padding * 2);
+    return { x, y, month: item.month, value: item.value };
+  });
+
+  // Path data
+  const pathD = points.reduce((acc, p, i) => {
+    return i === 0 ? `M ${p.x} ${p.y}` : `${acc} L ${p.x} ${p.y}`;
+  }, "");
+
+  // Area data (for a beautiful under-line gradient)
+  const areaD = points.length > 0 
+    ? `${pathD} L ${points[points.length - 1].x} ${chartHeight - padding} L ${points[0].x} ${chartHeight - padding} Z` 
+    : "";
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 relative">
-        <div className="absolute inset-0 flex items-end">
-          {data.map((item, index) => {
-            const height = ((item.value - minValue) / range) * 80 + 10
-            const prevHeight = index > 0 ? ((data[index - 1].value - minValue) / range) * 80 + 10 : height
+    <div className="flex flex-col h-full justify-between">
+      <div className="flex-1 relative w-full h-[220px]">
+        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full overflow-visible">
+          <defs>
+            <linearGradient id="chart-gradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
+            </linearGradient>
+          </defs>
+          
+          {/* Grid lines */}
+          <line x1={padding} y1={padding} x2={chartWidth - padding} y2={padding} stroke="#f1f5f9" strokeWidth="1" />
+          <line x1={padding} y1={chartHeight / 2} x2={chartWidth - padding} y2={chartHeight / 2} stroke="#f1f5f9" strokeWidth="1" />
+          <line x1={padding} y1={chartHeight - padding} x2={chartWidth - padding} y2={chartHeight - padding} stroke="#cbd5e1" strokeWidth="1.5" />
 
-            return (
-              <div key={index} className="flex-1 flex flex-col items-center justify-end h-full">
-                {index > 0 && (
-                  <div
-                    className="absolute bg-blue-500"
-                    style={{
-                      height: "2px",
-                      width: `${100 / data.length}%`,
-                      bottom: `${prevHeight}%`,
-                      left: `${(index - 0.5) * (100 / data.length)}%`,
-                      transform: `rotate(${Math.atan2(height - prevHeight, 100 / data.length) * (180 / Math.PI)}deg)`,
-                      transformOrigin: "0 50%",
-                    }}
-                  ></div>
-                )}
-                <div className="w-3 h-3 rounded-full bg-blue-500 z-10 transition-all duration-300" style={{ transform: `translateY(-${height}px)` }}></div>
-              </div>
-            )
-          })}
-        </div>
+          {/* Area under the line */}
+          {areaD && <path d={areaD} fill="url(#chart-gradient)" />}
+
+          {/* The line itself */}
+          {pathD && (
+            <path
+              d={pathD}
+              fill="none"
+              stroke="#3b82f6"
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
+
+          {/* Individual Dots */}
+          {points.map((p, index) => (
+            <g key={index} className="group cursor-pointer">
+              <circle
+                cx={p.x}
+                cy={p.y}
+                r="6"
+                fill="#3b82f6"
+                stroke="#ffffff"
+                strokeWidth="2.5"
+                className="transition-all duration-200 group-hover:r-8 group-hover:fill-blue-600 shadow"
+              />
+              {/* Tooltip on hover */}
+              <rect
+                x={p.x - 20}
+                y={p.y - 32}
+                width="40"
+                height="18"
+                rx="4"
+                fill="#1e293b"
+                className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+              />
+              <text
+                x={p.x}
+                y={p.y - 20}
+                textAnchor="middle"
+                fill="#ffffff"
+                className="text-[9px] font-bold opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+              >
+                {p.value}
+              </text>
+            </g>
+          ))}
+        </svg>
       </div>
-      <div className="flex mt-2">
+      
+      {/* Month Labels */}
+      <div className="flex justify-between px-[10px] mt-2 border-t pt-2 border-slate-100">
         {data.map((item, index) => (
-          <div key={index} className="flex-1 text-center">
-            <div className="text-xs font-medium">{item.month}</div>
-            <div className="text-xs text-muted-foreground">{item.value}</div>
+          <div key={index} className="text-center flex-1">
+            <span className="text-xs font-semibold text-slate-600">{item.month}</span>
+            <div className="text-[10px] text-slate-400 font-medium">{item.value} items</div>
           </div>
         ))}
       </div>
     </div>
-  )
+  );
 }

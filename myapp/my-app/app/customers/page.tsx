@@ -27,7 +27,7 @@ export default function CustomersPage() {
   }, [safeCustomers, searchTerm]);
 
   const activeCustomers = useMemo(() => safeCustomers.filter((c) => c.is_active).length, [safeCustomers]);
-  const totalRevenue = useMemo(() => safeCustomers.reduce((acc, c) => acc + (c.total_spent || 0), 0), [safeCustomers]);
+  const totalRevenue = useMemo(() => safeCustomers.reduce((acc, c) => acc + Number(c.total_spent || 0), 0), [safeCustomers]);
   const avgOrderValue = totalRevenue / (safeCustomers.reduce((acc, c) => acc + (c.total_orders || 0), 0) || 1);
   const newCustomersThisMonth = useMemo(() => safeCustomers.filter(c => new Date(c.created_date) > new Date(new Date().setDate(1))).length, [safeCustomers]);
 
@@ -111,7 +111,7 @@ export default function CustomersPage() {
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalRevenue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">Ksh {totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">From all customers</p>
           </CardContent>
         </Card>
@@ -121,7 +121,7 @@ export default function CustomersPage() {
             <CardTitle className="text-sm font-medium">Avg Order Value</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${avgOrderValue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">Ksh {avgOrderValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">Per order</p>
           </CardContent>
         </Card>

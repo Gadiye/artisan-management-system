@@ -268,7 +268,7 @@ class ArtisanUpdateSerializer(serializers.ModelSerializer):
             # Check for active jobs before allowing deactivation
             active_jobs = JobItem.objects.filter(
                 artisan=self.instance, 
-                job__status='IN_PROGRESS'
+                job___status='IN_PROGRESS'
             ).exists()
             
             if active_jobs:

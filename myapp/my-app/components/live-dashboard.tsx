@@ -21,7 +21,10 @@ export default function LiveDashboard() {
     total_payment: string;
   }
 
-  const pendingPayments = payslipsData?.results?.reduce((sum: number, payslip: PayslipData) => sum + parseFloat(payslip.total_payment), 0) ?? '...';
+  const pendingPayments = payslipsData?.results?.reduce((sum: number, payslip: PayslipData) => sum + parseFloat(payslip.total_payment), 0);
+  const formattedPendingPayments = typeof pendingPayments === 'number'
+    ? `Ksh ${pendingPayments.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : '...';
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -53,7 +56,7 @@ export default function LiveDashboard() {
           <DollarSign className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">${pendingPayments}</div>
+          <div className="text-2xl font-bold">{formattedPendingPayments}</div>
           <p className="text-xs text-muted-foreground">Across all completed jobs</p>
         </CardContent>
       </Card>

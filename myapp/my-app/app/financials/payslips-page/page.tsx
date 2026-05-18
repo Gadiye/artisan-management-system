@@ -156,7 +156,7 @@ export default function PayslipsPage() {
             <CardTitle className="text-sm font-medium">Total Payments</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Ksh{totalPayments.toFixed(2)}</div>
+            <div className="text-2xl font-bold">Ksh {totalPayments.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">Paid out</p>
           </CardContent>
         </Card>
@@ -166,7 +166,7 @@ export default function PayslipsPage() {
             <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Ksh{pendingAmount.toFixed(2)}</div>
+            <div className="text-2xl font-bold">Ksh {pendingAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">Awaiting payslip generation</p>
           </CardContent>
         </Card>
@@ -371,13 +371,13 @@ export default function PayslipsPage() {
                         </div>
                       </TableCell>
                       <TableCell className="font-medium">
-                        Ksh{(Number(payslip.total_payment || 0) + Number(payslip.total_advances_deducted || 0)).toFixed(2)}
+                        Ksh {Number(Number(payslip.total_payment || 0) + Number(payslip.total_advances_deducted || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell className="font-medium text-red-600">
-                        -Ksh{Number(payslip.total_advances_deducted || 0).toFixed(2)}
+                        -Ksh {Number(payslip.total_advances_deducted || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell className="font-medium">
-                        Ksh{Number(payslip.total_payment || 0).toFixed(2)}
+                        Ksh {Number(payslip.total_payment || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell>{new Date(payslip.generated_date).toLocaleDateString()}</TableCell>
                       <TableCell>
@@ -422,7 +422,7 @@ export default function PayslipsPage() {
                         <TableCell>
                           <Badge variant="outline">{artisan.name}</Badge>
                         </TableCell>
-                        <TableCell>Ksh{Number(artisan.pending_payment_total).toFixed(2)}</TableCell>
+                        <TableCell>Ksh {Number(artisan.pending_payment_total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                       </TableRow>
                     ))
                   ) : (
@@ -496,7 +496,7 @@ function PendingPaymentDetailsDialog({ isOpen, onClose, artisanId, artisans }: P
                       <TableCell>{item.product.product_type} ({item.product.animal_type})</TableCell>
                       <TableCell>{job.service_category}</TableCell>
                       <TableCell>{item.quantity_accepted}</TableCell>
-                      <TableCell>Ksh{parseFloat(item.final_payment).toFixed(2)}</TableCell>
+                      <TableCell>Ksh {Number(item.final_payment).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                       <TableCell>{new Date(job.created_date).toLocaleDateString()}</TableCell>
                     </TableRow>
                   ))

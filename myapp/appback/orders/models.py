@@ -13,7 +13,7 @@ class Order(models.Model):
     
     order_id = models.AutoField(primary_key=True)
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT)
-    created_date = models.DateTimeField(auto_now_add=True)
+    created_date = models.DateTimeField(auto_now_add=True, db_index=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Total before discounts and taxes")
     discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)

@@ -263,7 +263,7 @@ export default function AdvancesPage() {
             <CardTitle className="text-sm font-medium">Total Advances</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Ksh{advances.reduce((sum, a) => sum + Number(a.amount), 0).toFixed(2)}</div>
+            <div className="text-2xl font-bold">Ksh {advances.reduce((sum, a) => sum + Number(a.amount), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">{advances.length} records</p>
           </CardContent>
         </Card>
@@ -272,7 +272,7 @@ export default function AdvancesPage() {
             <CardTitle className="text-sm font-medium">Outstanding Balance</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Ksh{totalOutstandingAdvances.toFixed(2)}</div>
+            <div className="text-2xl font-bold">Ksh {totalOutstandingAdvances.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">Across {advances.filter(a => !a.is_settled).length} advances</p>
           </CardContent>
         </Card>
@@ -281,7 +281,7 @@ export default function AdvancesPage() {
             <CardTitle className="text-sm font-medium">Settled Advances</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Ksh{advances.filter(a => a.is_settled).reduce((sum, a) => sum + Number(a.amount), 0).toFixed(2)}</div>
+            <div className="text-2xl font-bold">Ksh {advances.filter(a => a.is_settled).reduce((sum, a) => sum + Number(a.amount), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">{advances.filter(a => a.is_settled).length} records</p>
           </CardContent>
         </Card>
@@ -367,8 +367,8 @@ export default function AdvancesPage() {
                       {artisans?.find((a) => a.id === advance.artisan)?.name ||
                         "Unknown"}
                     </TableCell>
-                    <TableCell>Ksh{typeof advance.amount === 'number' ? advance.amount.toFixed(2) : parseFloat(advance.amount || '0').toFixed(2)}</TableCell>
-                    <TableCell>Ksh{typeof advance.balance === 'number' ? advance.balance.toFixed(2) : parseFloat(advance.balance || '0').toFixed(2)}</TableCell>
+                    <TableCell>Ksh {Number(advance.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                    <TableCell>Ksh {Number(advance.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                     <TableCell>
                       {new Date(advance.date_given).toLocaleDateString()}
                     </TableCell>
@@ -518,7 +518,7 @@ export default function AdvancesPage() {
                 Outstanding Balance
               </Label>
               <div className="col-span-3 text-left font-medium">
-                Ksh{selectedAdvanceToDeduct ? Number(selectedAdvanceToDeduct.balance).toFixed(2) : "0.00"}
+                Ksh {selectedAdvanceToDeduct ? Number(selectedAdvanceToDeduct.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"}
               </div>
             </div>
           </div>

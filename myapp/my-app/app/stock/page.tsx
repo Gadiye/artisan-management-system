@@ -138,7 +138,7 @@ export default function FinishedStockPage() {
             <CardTitle className="text-sm font-medium">Total Stock Value</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalValue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">Ksh {totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">Based on average cost</p>
           </CardContent>
         </Card>
@@ -262,9 +262,9 @@ export default function FinishedStockPage() {
                         <span className="text-yellow-600 ml-1">⚠</span>
                       )}
                     </TableCell>
-                    <TableCell>${Number(item.average_cost || 0).toFixed(2)}</TableCell>
+                    <TableCell>Ksh {Number(item.average_cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                     <TableCell className="text-right font-medium">
-                      ${Number(product?.base_price || 0).toFixed(2)}
+                      Ksh {Number(product?.base_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">

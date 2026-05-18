@@ -156,7 +156,7 @@ export default function OrdersPage() {
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Ksh{totalRevenue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">Ksh {totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">From orders</p>
           </CardContent>
         </Card>
@@ -193,7 +193,7 @@ export default function OrdersPage() {
                   </TableCell>
                   <TableCell>{new Date(order.created_date).toLocaleDateString()}</TableCell>
                   <TableCell>{(order.items?.length || 0)} items</TableCell>
-                  <TableCell className="font-medium">Ksh{Number(order.total_amount || 0).toFixed(2)}</TableCell>
+                  <TableCell className="font-medium">Ksh {Number(order.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                   <TableCell>
                     <Badge variant={getStatusColor(order.status)} className="flex items-center gap-1 w-fit">
                       {getStatusIcon(order.status)}

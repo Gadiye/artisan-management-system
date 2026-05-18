@@ -46,8 +46,8 @@ class ArtisanJobsView(generics.ListAPIView):
     pagination_class = ArtisanPagination
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['job__status', 'job__service_category']
-    ordering_fields = ['job__created_date', 'job__status']
+    filterset_fields = ['job___status', 'job__service_category']
+    ordering_fields = ['job__created_date', 'job___status']
     ordering = ['-job__created_date']
 
     def get_queryset(self):
@@ -142,7 +142,7 @@ def deactivate_artisan(request, pk):
         artisan = Artisan.objects.get(pk=pk)
         
         # Check for active jobs before deactivation
-        active_jobs = JobItem.objects.filter(artisan=artisan, job__status='IN_PROGRESS').exists()
+        active_jobs = JobItem.objects.filter(artisan=artisan, job___status='IN_PROGRESS').exists()
         if active_jobs:
             return Response(
                 {"error": "Cannot deactivate artisan with active job items."},
@@ -195,8 +195,8 @@ def artisan_stats(request, pk):
         
         # Calculate stats
         total_jobs = JobItem.objects.filter(artisan=artisan).count()
-        completed_jobs = JobItem.objects.filter(artisan=artisan, job__status='COMPLETED').count()
-        in_progress_jobs = JobItem.objects.filter(artisan=artisan, job__status='IN_PROGRESS').count()
+        completed_jobs = JobItem.objects.filter(artisan=artisan, job___status='COMPLETED').count()
+        in_progress_jobs = JobItem.objects.filter(artisan=artisan, job___status='IN_PROGRESS').count()
         total_payslips = Payslip.objects.filter(artisan=artisan).count()
         
         # Calculate total earnings
@@ -249,7 +249,7 @@ class ArtisanViewSet(viewsets.ModelViewSet):
             pending_payment_subquery = JobItem.objects.filter(
                 artisan=OuterRef('pk'),
                 payslip_generated=False,
-                job__status='COMPLETED'
+                job___status='COMPLETED'
             ).values('artisan').annotate(
                 total_pending=Sum('final_payment')
             ).values('total_pending')

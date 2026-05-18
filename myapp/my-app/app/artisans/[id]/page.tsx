@@ -232,13 +232,13 @@ export default function ArtisanDetailPage({ params }: ArtisanDetailPageProps) {
           <StatCard
             icon={DollarSign}
             title="Total Earnings"
-            value={`$${(artisan.total_earnings || 0).toLocaleString()}`}
+            value={`Ksh ${(artisan.total_earnings || 0).toLocaleString()}`}
             subtitle="Lifetime revenue"
           />
           <StatCard
             icon={TrendingUp}
             title="Pending Payment"
-            value={`$${(artisan.pending_payment || 0).toLocaleString()}`}
+            value={`Ksh ${(artisan.pending_payment || 0).toLocaleString()}`}
             subtitle="Awaiting payment"
           />
         </div>
