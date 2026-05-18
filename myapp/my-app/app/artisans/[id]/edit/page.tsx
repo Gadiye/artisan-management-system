@@ -9,8 +9,10 @@ import { Switch } from "@/components/ui/switch";
 import { useRouter, useParams } from "next/navigation";
 import { api } from '@/lib/api';
 import { Artisan } from "@/types";
-import { User, Loader2 } from "lucide-react";
+import { User, Loader2, ArrowLeft, Save, AlertCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import Link from "next/link";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function EditArtisanPage() {
     const router = useRouter();
@@ -21,6 +23,7 @@ export default function EditArtisanPage() {
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
     useEffect(() => {
         if (id) {
@@ -30,7 +33,7 @@ export default function EditArtisanPage() {
                     const data = await api.artisans.get(parseInt(id));
                     setArtisan(data);
                 } catch (err) {
-                    setError("Failed to fetch artisan data.");
+                    setError("Failed to fetch artisan profile data.");
                 } finally {
                     setLoading(false);
                 }
@@ -47,15 +50,17 @@ export default function EditArtisanPage() {
 
         setUpdating(true);
         setError(null);
+        setFormSuccess(null);
 
         try {
             await api.artisans.update(parseInt(id), artisan);
-            alert("Artisan updated successfully!");
-            router.push("/artisans");
+            setFormSuccess("Artisan profile updated successfully!");
+            setTimeout(() => {
+                router.push("/artisans");
+            }, 1200);
         } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
             setError(errorMessage);
-            alert(`Failed to update artisan: ${errorMessage}`);
         } finally {
             setUpdating(false);
         }
@@ -63,9 +68,12 @@ export default function EditArtisanPage() {
 
     if (loading) {
         return (
-            <div className="container mx-auto p-6">
-                <Skeleton className="h-10 w-64 mb-8" />
-                <Card className="max-w-2xl mx-auto">
+            <div className="container mx-auto p-6 space-y-8 max-w-2xl">
+                <div className="space-y-2">
+                    <Skeleton className="h-6 w-32" />
+                    <Skeleton className="h-10 w-64" />
+                </div>
+                <Card className="border-gray-200">
                     <CardHeader>
                         <Skeleton className="h-6 w-48 mb-2" />
                         <Skeleton className="h-4 w-64" />
@@ -77,84 +85,116 @@ export default function EditArtisanPage() {
                                 <Skeleton className="h-10 w-full" />
                             </div>
                         ))}
-                        <div className="flex justify-end gap-2 pt-4">
-                            <Skeleton className="h-10 w-24" />
-                            <Skeleton className="h-10 w-32" />
-                        </div>
                     </CardContent>
                 </Card>
             </div>
         );
     }
 
-    if (error) {
-        return <div className="container mx-auto p-6 text-red-500">{error}</div>;
+    if (error && !artisan) {
+        return (
+            <div className="container mx-auto p-6 max-w-2xl">
+                <Alert variant="destructive" className="border-red-200 bg-red-50 text-red-950">
+                    <AlertCircle className="h-4 w-4 text-red-600" />
+                    <AlertTitle>Profile Error</AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
+                </Alert>
+                <Button onClick={() => router.back()} className="mt-4">Go Back</Button>
+            </div>
+        );
     }
 
     if (!artisan) {
-        return <div className="container mx-auto p-6">Artisan not found.</div>;
+        return <div className="container mx-auto p-6 text-center font-bold text-muted-foreground">Artisan profile not found.</div>;
     }
 
     return (
-        <div className="container mx-auto p-6">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold">Edit Artisan</h1>
-                <p className="text-muted-foreground mt-2">Update the details for {artisan.name}.</p>
+        <div className="container mx-auto p-6 max-w-2xl space-y-8 animate-in fade-in duration-300">
+            {/* Header */}
+            <div className="space-y-2">
+                <Button variant="ghost" size="sm" onClick={() => router.back()} className="hover:bg-gray-100 transition-colors -ml-3 mb-1">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Directory
+                </Button>
+                <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">Edit Artisan</h1>
+                <p className="text-sm font-semibold text-muted-foreground">Update profile details and active workload status for {artisan.name}</p>
             </div>
 
-            <Card className="max-w-2xl mx-auto">
-                <CardHeader>
-                    <CardTitle>Artisan Information</CardTitle>
-                    <CardDescription>Update the form below with the new artisan details.</CardDescription>
+            {error && (
+                <Alert variant="destructive" className="border-red-200 bg-red-50 text-red-950">
+                    <AlertCircle className="h-4 w-4 text-red-600" />
+                    <AlertTitle>Update Failure</AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
+                </Alert>
+            )}
+
+            {formSuccess && (
+                <Alert className="border-emerald-200 bg-emerald-50 text-emerald-950">
+                    <AlertCircle className="h-4 w-4 text-emerald-600" />
+                    <AlertTitle>Success</AlertTitle>
+                    <AlertDescription>{formSuccess}</AlertDescription>
+                </Alert>
+            )}
+
+            <Card className="border-gray-200 shadow-sm overflow-hidden">
+                <CardHeader className="bg-gray-50/50 border-b pb-4">
+                    <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <User className="h-5 w-5 text-blue-600" />
+                        Artisan Information
+                    </CardTitle>
+                    <CardDescription className="text-xs font-semibold">Modify core registry credentials and active flags</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="pt-6 space-y-6">
                     <div className="space-y-2">
-                        <Label htmlFor="name">Name *</Label>
+                        <Label htmlFor="name" className="text-xs font-bold uppercase text-gray-500 tracking-wider">Full Name *</Label>
                         <Input
                             id="name"
                             value={artisan.name}
                             onChange={(e) => setArtisan({ ...artisan, name: e.target.value })}
-                            placeholder="e.g., Jane Artisan"
+                            placeholder="e.g. John Mwangi"
+                            className="h-11 border-gray-300 font-medium text-sm"
                             required
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="phone">Phone</Label>
+                        <Label htmlFor="phone" className="text-xs font-bold uppercase text-gray-500 tracking-wider">Phone Contact</Label>
                         <Input
                             id="phone"
                             value={artisan.phone || ""}
                             onChange={(e) => setArtisan({ ...artisan, phone: e.target.value })}
-                            placeholder="e.g., +1 415-555-2671"
+                            placeholder="e.g. +254 712 345 678"
+                            className="h-11 border-gray-300 font-medium text-sm"
                         />
                     </div>
 
-                    <div className="flex items-center space-x-2 pt-2">
+                    <div className="flex items-center space-x-3 pt-3 border-t">
                         <Switch
                             id="is_active"
                             checked={artisan.is_active}
                             onCheckedChange={(checked) => setArtisan({ ...artisan, is_active: checked })}
                         />
-                        <Label htmlFor="is_active">Active Status</Label>
+                        <div>
+                            <Label htmlFor="is_active" className="text-sm font-extrabold text-gray-900 cursor-pointer">Active Work Roster</Label>
+                            <p className="text-[11px] text-muted-foreground font-semibold">Toggling off prevents assigning new jobs</p>
+                        </div>
                     </div>
 
-                    {error && (
-                        <div className="text-red-500 text-sm">
-                            {error}
-                        </div>
-                    )}
-
-                    <div className="flex justify-end gap-2 pt-4">
-                        <Button variant="outline" onClick={() => router.back()}>
+                    <div className="flex justify-end gap-3 pt-6 border-t mt-8">
+                        <Button variant="outline" onClick={() => router.back()} className="h-11 px-4 text-xs font-bold uppercase">
                             Cancel
                         </Button>
-                        <Button onClick={handleSubmit} disabled={updating || !artisan.name}>
+                        <Button 
+                            onClick={handleSubmit} 
+                            disabled={updating || !artisan.name}
+                            className="h-11 px-5 text-xs font-bold uppercase bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-600/10"
+                        >
                             {updating ? (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             ) : (
-                                <User className="mr-2 h-4 w-4" />
+                                <Save className="mr-2 h-4 w-4 stroke-[2.5]" />
                             )}
-                            {updating ? "Saving..." : "Save Changes"}
+                            {updating ? "Saving Changes..." : "Save Changes"}
                         </Button>
                     </div>
                 </CardContent>
