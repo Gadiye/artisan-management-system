@@ -14,6 +14,7 @@ import { useInventory, useReports } from '@/hooks/useResource';
 import { Product } from "@/types";
 import { TransactionHistoryModal } from "@/components/transaction-history-modal";
 import { SERVICE_STAGES, getStageColor } from '@/lib/constants';
+import { splitPairsAndItems } from "@/lib/utils";
 
 
 
@@ -384,8 +385,7 @@ export default function InventoryPage() {
                           <div className="font-extrabold text-sm text-gray-900">
                             {item.product.unit_of_measure === 'PAIRS' ?
                               (() => {
-                                const pairs = Math.floor(item.quantity / 2);
-                                const singles = item.quantity % 2;
+                                const { pairs, singles } = splitPairsAndItems(item.quantity);
                                 return `${pairs}P / ${singles}S`;
                               })()
                               :

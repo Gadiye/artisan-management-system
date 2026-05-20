@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useFinishedStock } from '@/hooks/useResource';
 import { FinishedStock, Product } from "@/types";
+import { splitPairsAndItems } from "@/lib/utils";
 
 interface EnrichedFinishedStockItem extends FinishedStock {
   product: Product & { unit_of_measure?: string };
@@ -297,13 +298,12 @@ export default function FinishedStockPage() {
                     <TableCell className="text-right">
                       <div className="font-extrabold text-sm text-gray-900">
                         {product?.unit_of_measure === 'PAIRS' ?
-                          (() => {
-                            const pairs = Math.floor(item.quantity / 2);
-                            const singles = item.quantity % 2;
-                            return `${pairs}P / ${singles}S`;
-                          })()
-                          :
-                          <>{item.quantity} Pcs</>
+                            (() => {
+                                const { pairs, singles } = splitPairsAndItems(item.quantity);
+                                return `${pairs}P / ${singles}S`;
+                            })()
+                            :
+                            `${item.quantity} pcs`
                         }
                       </div>
                       <div className="text-[10px] text-muted-foreground font-bold">({item.quantity} total)</div>

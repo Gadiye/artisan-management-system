@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useApi } from "@/hooks/useApi";
 import { JobItem } from "@/types";
 import { useState } from "react"
+import { usePairsInput } from "@/hooks/usePairsInput";
 
 interface RecordDeliveryDialogProps {
   jobItem: JobItem;
@@ -20,10 +21,10 @@ export function RecordDeliveryDialog({ jobItem, refetchJob, disabled }: RecordDe
   const [isOpen, setIsOpen] = useState(false);
   const [quantityReceived, setQuantityReceived] = useState("");
   const [quantityAccepted, setQuantityAccepted] = useState("");
-  const [receivedPairs, setReceivedPairs] = useState("");
-  const [receivedSingles, setReceivedSingles] = useState("");
-  const [acceptedPairs, setAcceptedPairs] = useState("");
-  const [acceptedSingles, setAcceptedSingles] = useState("");
+  
+  const receivedInput = usePairsInput();
+  const acceptedInput = usePairsInput();
+
   const [rejectionReason, setRejectionReason] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -36,8 +37,8 @@ export function RecordDeliveryDialog({ jobItem, refetchJob, disabled }: RecordDe
     let finalQuantityAccepted = 0;
 
     if (jobItem.product.unit_of_measure === 'PAIRS') {
-      finalQuantityReceived = (parseFloat(receivedPairs || '0') * 2) + parseFloat(receivedSingles || '0');
-      finalQuantityAccepted = (parseFloat(acceptedPairs || '0') * 2) + parseFloat(acceptedSingles || '0');
+      finalQuantityReceived = receivedInput.totalQuantity;
+      finalQuantityAccepted = acceptedInput.totalQuantity;
     } else {
       finalQuantityReceived = parseFloat(quantityReceived || '0');
       finalQuantityAccepted = parseFloat(quantityAccepted || '0');
@@ -53,6 +54,8 @@ export function RecordDeliveryDialog({ jobItem, refetchJob, disabled }: RecordDe
     await post(payload);
     refetchJob();
     setIsOpen(false);
+    receivedInput.reset();
+    acceptedInput.reset();
   };
 
   return (
@@ -68,21 +71,26 @@ export function RecordDeliveryDialog({ jobItem, refetchJob, disabled }: RecordDe
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="quantityReceived" className="text-right">Received</Label>
             {jobItem.product.unit_of_measure === 'PAIRS' ? (
-              <div className="col-span-3 flex gap-2">
-                <Input
-                  id="receivedPairs"
-                  type="number"
-                  value={receivedPairs}
-                  onChange={(e) => setReceivedPairs(e.target.value)}
-                  placeholder="Pairs"
-                />
-                <Input
-                  id="receivedSingles"
-                  type="number"
-                  value={receivedSingles}
-                  onChange={(e) => setReceivedSingles(e.target.value)}
-                  placeholder="Singles"
-                />
+              <div className="col-span-3 space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    id="receivedPairs"
+                    type="number"
+                    value={receivedInput.pairs}
+                    onChange={(e) => receivedInput.setPairs(e.target.value)}
+                    placeholder="Pairs"
+                  />
+                  <Input
+                    id="receivedSingles"
+                    type="number"
+                    value={receivedInput.singles}
+                    onChange={(e) => receivedInput.setSingles(e.target.value)}
+                    placeholder="Singles"
+                  />
+                </div>
+                <div className="text-[10px] text-muted-foreground font-bold text-right">
+                  Total: {receivedInput.totalQuantity} individual items
+                </div>
               </div>
             ) : (
               <Input
@@ -97,21 +105,26 @@ export function RecordDeliveryDialog({ jobItem, refetchJob, disabled }: RecordDe
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="quantityAccepted" className="text-right">Accepted</Label>
             {jobItem.product.unit_of_measure === 'PAIRS' ? (
-              <div className="col-span-3 flex gap-2">
-                <Input
-                  id="acceptedPairs"
-                  type="number"
-                  value={acceptedPairs}
-                  onChange={(e) => setAcceptedPairs(e.target.value)}
-                  placeholder="Pairs"
-                />
-                <Input
-                  id="acceptedSingles"
-                  type="number"
-                  value={acceptedSingles}
-                  onChange={(e) => setAcceptedSingles(e.target.value)}
-                  placeholder="Singles"
-                />
+              <div className="col-span-3 space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    id="acceptedPairs"
+                    type="number"
+                    value={acceptedInput.pairs}
+                    onChange={(e) => acceptedInput.setPairs(e.target.value)}
+                    placeholder="Pairs"
+                  />
+                  <Input
+                    id="acceptedSingles"
+                    type="number"
+                    value={acceptedInput.singles}
+                    onChange={(e) => acceptedInput.setSingles(e.target.value)}
+                    placeholder="Singles"
+                  />
+                </div>
+                <div className="text-[10px] text-muted-foreground font-bold text-right">
+                  Total: {acceptedInput.totalQuantity} individual items
+                </div>
               </div>
             ) : (
               <Input
