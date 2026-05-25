@@ -33,7 +33,7 @@ from products.models import Product
 from .filters import JobFilter, JobItemFilter
 
 
-from .services import record_job_delivery
+from .services import record_job_delivery, update_job_status
 
 
 class JobPagination(PageNumberPagination):
@@ -89,7 +89,7 @@ class JobViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         with transaction.atomic():
             job = serializer.save()
-            job.update_status()
+            update_job_status(job)
 
     def perform_destroy(self, instance):
         # Check if any job items have generated payslips
@@ -475,7 +475,7 @@ class JobViewSet(viewsets.ModelViewSet):
         
         with transaction.atomic():
             updated_job_item = serializer.save()
-            # Job status will be updated by job_item.save() itself
+            update_job_status(updated_job_item.job)
         
         return Response(JobItemDetailListSerializer(updated_job_item).data)
 
@@ -495,7 +495,7 @@ class JobViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             job_item.delete()
-            job.update_status()
+            update_job_status(job)
         
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -695,12 +695,12 @@ class JobItemViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         with transaction.atomic():
             job_item = serializer.save()
-            job_item.job.update_status()
+            update_job_status(job_item.job)
 
     def perform_update(self, serializer):
         with transaction.atomic():
             job_item = serializer.save()
-            job_item.job.update_status()
+            update_job_status(job_item.job)
 
     def perform_destroy(self, instance):
         if instance.payslip_generated:
@@ -712,7 +712,7 @@ class JobItemViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             job = instance.job
             instance.delete()
-            job.update_status()
+            update_job_status(job)
 
     @action(detail=False, methods=['get'], url_path='pending-delivery')
     def pending_delivery(self, request):

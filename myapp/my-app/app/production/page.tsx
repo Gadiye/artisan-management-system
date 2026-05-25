@@ -44,6 +44,9 @@ export default function ProductionGuidePage() {
     const { data, loading, error } = useProductionGuide();
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
+    const [stageFilter, setStageFilter] = useState("ALL");
+    const [productTypeFilter, setProductTypeFilter] = useState("ALL");
+    const [animalTypeFilter, setAnimalTypeFilter] = useState("ALL");
 
     if (loading) {
         return (
@@ -93,6 +96,10 @@ export default function ProductionGuidePage() {
     const safeData = ((data as any)?.products || []) as ProductionProduct[];
     const safeWorkload = (data as any)?.artisan_workload || [];
 
+    // Extract unique product types and animal types for dropdowns
+    const uniqueProductTypes = Array.from(new Set(safeData.map(p => p.product_type))).filter(Boolean).sort();
+    const uniqueAnimalTypes = Array.from(new Set(safeData.map(p => p.animal_type))).filter(Boolean).sort();
+
     // Calculate overall shortage
     const totalShortage = safeData.reduce((sum: number, p: ProductionProduct) => {
         const totalWip = Object.values(p.inventory || {}).reduce((a: number, b: number) => a + b, 0) +
@@ -105,6 +112,19 @@ export default function ProductionGuidePage() {
     const filteredProducts = safeData.filter((p: ProductionProduct) => {
         const productText = `${p.product_type} ${p.animal_type} ${p.size_category}`.toLowerCase();
         const matchesSearch = productText.includes(searchQuery.toLowerCase());
+
+        // Stage filter
+        if (stageFilter !== "ALL") {
+            const inventoryAtStage = p.inventory?.[stageFilter] || 0;
+            const wipAtStage = p.in_production?.[stageFilter] || 0;
+            if (inventoryAtStage === 0 && wipAtStage === 0) return false;
+        }
+
+        // Product Type filter
+        if (productTypeFilter !== "ALL" && p.product_type !== productTypeFilter) return false;
+
+        // Animal Type filter
+        if (animalTypeFilter !== "ALL" && p.animal_type !== animalTypeFilter) return false;
 
         const totalWip = Object.values(p.inventory || {}).reduce((a: number, b: number) => a + b, 0) +
             Object.values(p.in_production || {}).reduce((a: number, b: number) => a + b, 0);
@@ -224,8 +244,8 @@ export default function ProductionGuidePage() {
                             </div>
 
                             {/* Search & Filter Controls */}
-                            <div className="flex items-center gap-3 w-full md:w-auto">
-                                <div className="relative flex-1 md:w-64">
+                            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                                <div className="relative flex-1 min-w-[200px]">
                                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input
                                         placeholder="Search by animal or type..."
@@ -234,14 +254,56 @@ export default function ProductionGuidePage() {
                                         className="pl-9 text-xs h-9 bg-white"
                                     />
                                 </div>
-                                <div className="w-36">
-                                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                <div className="w-32">
+                                    <Select value={stageFilter} onValueChange={setStageFilter}>
                                         <SelectTrigger className="text-xs h-9 bg-white">
-                                            <Filter className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                                            <SelectValue placeholder="All Status" />
+                                            <Layers className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                                            <SelectValue placeholder="Stage" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="ALL" className="text-xs">All Stages</SelectItem>
+                                            {STAGES.map(s => (
+                                                <SelectItem key={s.key} value={s.key} className="text-xs">{s.label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="w-36">
+                                    <Select value={productTypeFilter} onValueChange={setProductTypeFilter}>
+                                        <SelectTrigger className="text-xs h-9 bg-white">
+                                            <Package className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                                            <SelectValue placeholder="Product Type" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="ALL" className="text-xs">All Products</SelectItem>
+                                            {uniqueProductTypes.map(pt => (
+                                                <SelectItem key={pt} value={pt} className="text-xs">{pt.replace(/_/g, " ")}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="w-36">
+                                    <Select value={animalTypeFilter} onValueChange={setAnimalTypeFilter}>
+                                        <SelectTrigger className="text-xs h-9 bg-white">
+                                            <span className="mr-2">🐾</span>
+                                            <SelectValue placeholder="Animal" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="ALL" className="text-xs">All Animals</SelectItem>
+                                            {uniqueAnimalTypes.map(at => (
+                                                <SelectItem key={at} value={at} className="text-xs">{at}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="w-32">
+                                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                        <SelectTrigger className="text-xs h-9 bg-white">
+                                            <Filter className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                                            <SelectValue placeholder="Status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="ALL" className="text-xs">All Status</SelectItem>
                                             <SelectItem value="SHORTAGE" className="text-xs">Shortage Only</SelectItem>
                                             <SelectItem value="COVERED" className="text-xs">Covered Demand</SelectItem>
                                         </SelectContent>

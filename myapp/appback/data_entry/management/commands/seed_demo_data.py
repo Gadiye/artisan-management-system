@@ -9,6 +9,7 @@ from products.models import Product
 from artisans.models import Artisan
 from orders.models import Order, OrderItem
 from jobs.models import Job, JobItem, JobDelivery, ServiceRate
+from jobs.services import update_job_status
 from inventory.models import Inventory, FinishedStock
 
 def random_date_in_past(max_days_ago=90, min_days_ago=0):
@@ -212,7 +213,7 @@ class Command(BaseCommand):
                     # Bypass auto_now_add to set historical date
                     JobTransaction.objects.filter(pk=jt.pk).update(timestamp=delivery_date)
             job.refresh_from_db()
-            job.update_status()
+            update_job_status(job)
         self.stdout.write('Seeded 150 jobs with historical deliveries.')
 
     def seed_orders(self):

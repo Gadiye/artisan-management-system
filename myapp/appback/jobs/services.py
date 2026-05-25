@@ -4,6 +4,75 @@ from django.core.exceptions import ObjectDoesNotExist
 from inventory.models import Inventory, FinishedStock
 from .models import JobDelivery, JobTransaction, ServiceRate
 
+def update_job_status(job):
+    """
+    Service function to recalculate and update a Job's totals and status.
+    This was previously the `update_status` method on the Job model.
+    It calculates total_cost, total_final_payment, and determines the
+    correct status based on ordered vs received quantities.
+    """
+    from django.db.models import Sum
+    from decimal import Decimal
+
+    # Get the service rate for each item in this job to calculate total_cost correctly
+    # We'll do this in a single query for efficiency
+    items_stats = job.items.aggregate(
+        total_ordered=Sum('quantity_ordered'),
+        total_received=Sum('quantity_received'),
+        total_final_payment=Sum('final_payment')
+    )
+
+    total_ordered = items_stats['total_ordered'] or 0
+    total_received = items_stats['total_received'] or 0
+    new_total_final_payment = items_stats['total_final_payment'] or Decimal('0.00')
+
+    # Recalculate total_cost based on current service rates
+    total_cost_sum = Decimal('0.00')
+    rates = ServiceRate.objects.filter(
+        product__in=job.items.values_list('product', flat=True),
+        service_category=job.service_category
+    ).values('product_id', 'rate_per_unit')
+    
+    rate_map = {r['product_id']: r['rate_per_unit'] for r in rates}
+    
+    for item in job.items.all().select_related('product'):
+        rate = rate_map.get(item.product_id, Decimal('0.00'))
+        qty = Decimal(str(item.quantity_ordered))
+        if item.product.unit_of_measure == 'PAIRS':
+            qty = qty / Decimal('2')
+        total_cost_sum += qty * rate
+
+    old_status = job.status
+    new_status = 'IN_PROGRESS'
+    
+    if total_received == 0:
+        new_status = 'IN_PROGRESS'
+    elif total_received < total_ordered:
+        new_status = 'PARTIALLY_RECEIVED'
+    else:
+        new_status = 'COMPLETED'
+        
+    # Update fields
+    changed = False
+    if job.total_cost != total_cost_sum:
+        job.total_cost = total_cost_sum
+        changed = True
+    if job.total_final_payment != new_total_final_payment:
+        job.total_final_payment = new_total_final_payment
+        changed = True
+
+    if old_status != new_status:
+        if new_status == 'IN_PROGRESS':
+            job.reset_to_in_progress()
+        elif new_status == 'PARTIALLY_RECEIVED':
+            job.mark_partially_received()
+        elif new_status == 'COMPLETED':
+            job.mark_completed()
+        changed = True
+        
+    if changed:
+        job.save(update_fields=['total_cost', 'total_final_payment', '_status'])
+
 def calculate_item_payment(job_item, save=True):
     """
     Calculates the final payment for an artisan based on accepted quantities.
@@ -90,7 +159,7 @@ def record_job_delivery(job_item, quantity_received, quantity_accepted, rejectio
     job_item.save()
 
     # 4. Update parent Job status explicitly (this will also update denormalized totals)
-    job_item.job.update_status()
+    update_job_status(job_item.job)
     
     if quantity_accepted > 0:
         # 5. Create Job Transaction

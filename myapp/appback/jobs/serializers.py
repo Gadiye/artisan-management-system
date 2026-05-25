@@ -247,6 +247,9 @@ class JobCreateUpdateSerializer(serializers.ModelSerializer):
                 
                 # Create inventory reservation
                 item_serializer._create_inventory_reservation(job_item, bypass_inventory_deduction)
+                
+            from .services import update_job_status
+            update_job_status(job)
 
         return job
 

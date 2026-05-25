@@ -57,73 +57,6 @@ class Job(models.Model):
     def mark_completed(self):
         pass
 
-    def update_status(self):
-        # Calculate totals efficiently
-        from django.db.models import Sum, F, Case, When, DecimalField
-        from django.db.models.functions import Cast, Coalesce
-        from decimal import Decimal
-
-        # Get the service rate for each item in this job to calculate total_cost correctly
-        # We'll do this in a single query for efficiency
-        items_stats = self.items.aggregate(
-            total_ordered=Sum('quantity_ordered'),
-            total_received=Sum('quantity_received'),
-            total_final_payment=Sum('final_payment')
-        )
-
-        total_ordered = items_stats['total_ordered'] or 0
-        total_received = items_stats['total_received'] or 0
-        new_total_final_payment = items_stats['total_final_payment'] or Decimal('0.00')
-
-        # Recalculate total_cost based on current service rates
-        # This is more complex because it depends on product and job's service_category
-        total_cost_sum = Decimal('0.00')
-        from .models import ServiceRate
-        rates = ServiceRate.objects.filter(
-            product__in=self.items.values_list('product', flat=True),
-            service_category=self.service_category
-        ).values('product_id', 'rate_per_unit')
-        
-        rate_map = {r['product_id']: r['rate_per_unit'] for r in rates}
-        
-        for item in self.items.all().select_related('product'):
-            rate = rate_map.get(item.product_id, Decimal('0.00'))
-            qty = Decimal(str(item.quantity_ordered))
-            if item.product.unit_of_measure == 'PAIRS':
-                qty = qty / Decimal('2')
-            total_cost_sum += qty * rate
-
-        old_status = self.status
-        new_status = 'IN_PROGRESS'
-        
-        if total_received == 0:
-            new_status = 'IN_PROGRESS'
-        elif total_received < total_ordered:
-            new_status = 'PARTIALLY_RECEIVED'
-        else:
-            new_status = 'COMPLETED'
-            
-        # Update fields
-        changed = False
-        if self.total_cost != total_cost_sum:
-            self.total_cost = total_cost_sum
-            changed = True
-        if self.total_final_payment != new_total_final_payment:
-            self.total_final_payment = new_total_final_payment
-            changed = True
-
-        if old_status != new_status:
-            if new_status == 'IN_PROGRESS':
-                self.reset_to_in_progress()
-            elif new_status == 'PARTIALLY_RECEIVED':
-                self.mark_partially_received()
-            elif new_status == 'COMPLETED':
-                self.mark_completed()
-            changed = True
-            
-        if changed:
-            self.save()
-    
     @property
     def artisans_involved(self):
         # Read from memory to fully utilize prefetch_related cache and avoid N+1 queries
@@ -170,12 +103,9 @@ class JobItem(models.Model):
             self.unit_price_at_creation = self.product.base_price
 
         super().save(*args, **kwargs)
-        self.job.update_status()
 
     def delete(self, *args, **kwargs):
-        job = self.job
         super().delete(*args, **kwargs)
-        job.update_status()
 
 class JobDelivery(models.Model):
     job_item = models.ForeignKey(JobItem, on_delete=models.CASCADE, related_name='deliveries')
