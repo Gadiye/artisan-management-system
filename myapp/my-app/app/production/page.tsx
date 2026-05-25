@@ -146,6 +146,75 @@ export default function ProductionGuidePage() {
         return { label: "Heavy / Busy", color: "bg-red-50 text-red-700 border-red-150 animate-pulse", progressColor: "bg-red-600", percent: Math.min((units / 15) * 100, 100) };
     };
 
+    const filterControls = (
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder="Search by animal or type..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 text-xs h-9 bg-white"
+                />
+            </div>
+            <div className="w-32">
+                <Select value={stageFilter} onValueChange={setStageFilter}>
+                    <SelectTrigger className="text-xs h-9 bg-white">
+                        <Layers className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                        <SelectValue placeholder="Stage" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="ALL" className="text-xs">All Stages</SelectItem>
+                        {STAGES.map(s => (
+                            <SelectItem key={s.key} value={s.key} className="text-xs">{s.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="w-36">
+                <Select value={productTypeFilter} onValueChange={setProductTypeFilter}>
+                    <SelectTrigger className="text-xs h-9 bg-white">
+                        <Package className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                        <SelectValue placeholder="Product Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="ALL" className="text-xs">All Products</SelectItem>
+                        {uniqueProductTypes.map(pt => (
+                            <SelectItem key={pt} value={pt} className="text-xs">{pt.replace(/_/g, " ")}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="w-36">
+                <Select value={animalTypeFilter} onValueChange={setAnimalTypeFilter}>
+                    <SelectTrigger className="text-xs h-9 bg-white">
+                        <span className="mr-2">🐾</span>
+                        <SelectValue placeholder="Animal" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="ALL" className="text-xs">All Animals</SelectItem>
+                        {uniqueAnimalTypes.map(at => (
+                            <SelectItem key={at} value={at} className="text-xs">{at}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="w-32">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="text-xs h-9 bg-white">
+                        <Filter className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                        <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="ALL" className="text-xs">All Status</SelectItem>
+                        <SelectItem value="SHORTAGE" className="text-xs">Shortage Only</SelectItem>
+                        <SelectItem value="COVERED" className="text-xs">Covered Demand</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+        </div>
+    );
+
     return (
         <div className="container mx-auto p-6 space-y-8">
             {/* Header */}
@@ -226,6 +295,9 @@ export default function ProductionGuidePage() {
                     <TabsTrigger value="status" className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md transition-all">
                         <ClipboardList className="h-4 w-4" /> Live Status Board
                     </TabsTrigger>
+                    <TabsTrigger value="pipeline" className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md transition-all">
+                        <Factory className="h-4 w-4" /> Pipeline Board
+                    </TabsTrigger>
                     <TabsTrigger value="distribution" className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md transition-all">
                         <Layers className="h-4 w-4" /> Ready for Assignment
                     </TabsTrigger>
@@ -244,72 +316,7 @@ export default function ProductionGuidePage() {
                             </div>
 
                             {/* Search & Filter Controls */}
-                            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                                <div className="relative flex-1 min-w-[200px]">
-                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Search by animal or type..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="pl-9 text-xs h-9 bg-white"
-                                    />
-                                </div>
-                                <div className="w-32">
-                                    <Select value={stageFilter} onValueChange={setStageFilter}>
-                                        <SelectTrigger className="text-xs h-9 bg-white">
-                                            <Layers className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                                            <SelectValue placeholder="Stage" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="ALL" className="text-xs">All Stages</SelectItem>
-                                            {STAGES.map(s => (
-                                                <SelectItem key={s.key} value={s.key} className="text-xs">{s.label}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="w-36">
-                                    <Select value={productTypeFilter} onValueChange={setProductTypeFilter}>
-                                        <SelectTrigger className="text-xs h-9 bg-white">
-                                            <Package className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                                            <SelectValue placeholder="Product Type" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="ALL" className="text-xs">All Products</SelectItem>
-                                            {uniqueProductTypes.map(pt => (
-                                                <SelectItem key={pt} value={pt} className="text-xs">{pt.replace(/_/g, " ")}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="w-36">
-                                    <Select value={animalTypeFilter} onValueChange={setAnimalTypeFilter}>
-                                        <SelectTrigger className="text-xs h-9 bg-white">
-                                            <span className="mr-2">🐾</span>
-                                            <SelectValue placeholder="Animal" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="ALL" className="text-xs">All Animals</SelectItem>
-                                            {uniqueAnimalTypes.map(at => (
-                                                <SelectItem key={at} value={at} className="text-xs">{at}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="w-32">
-                                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                        <SelectTrigger className="text-xs h-9 bg-white">
-                                            <Filter className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                                            <SelectValue placeholder="Status" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="ALL" className="text-xs">All Status</SelectItem>
-                                            <SelectItem value="SHORTAGE" className="text-xs">Shortage Only</SelectItem>
-                                            <SelectItem value="COVERED" className="text-xs">Covered Demand</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
+                            {filterControls}
                         </CardHeader>
                         <CardContent className="p-0">
                             {filteredProducts.length === 0 ? (
@@ -528,6 +535,97 @@ export default function ProductionGuidePage() {
                                                 </div>
                                             </CardContent>
                                         </Card>
+                                    );
+                                })}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* TAB 4: Pipeline Board */}
+                <TabsContent value="pipeline" className="space-y-6">
+                    <Card className="shadow-sm border-gray-200 overflow-hidden">
+                        <CardHeader className="pb-3 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/50">
+                            <div>
+                                <CardTitle className="text-lg font-bold text-gray-900">Pipeline Flowchart & Board</CardTitle>
+                                <CardDescription className="text-xs">Visualizing units moving through production stages</CardDescription>
+                            </div>
+                            {filterControls}
+                        </CardHeader>
+                        <CardContent className="p-6">
+                            {/* Flowchart Diagram */}
+                            <div className="flex items-center justify-between overflow-x-auto pb-6 mb-6 border-b">
+                                {STAGES.map((stage, idx) => {
+                                    const totalAtStage = filteredProducts.reduce((sum: number, p: ProductionProduct) => 
+                                        sum + (p.inventory?.[stage.key] || 0) + (p.in_production?.[stage.key] || 0)
+                                    , 0);
+
+                                    return (
+                                        <div key={stage.key} className="flex items-center">
+                                            <div className="flex flex-col items-center gap-2 min-w-[80px]">
+                                                <div className={`flex items-center justify-center w-12 h-12 rounded-full border-2 ${getStageColor(stage.key).split(' ')[0].replace('bg-', 'border-').replace('100', '300')} ${getStageColor(stage.key)} shadow-sm font-extrabold text-sm`}>
+                                                    {totalAtStage}
+                                                </div>
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600">{stage.label}</span>
+                                            </div>
+                                            {idx < STAGES.length - 1 && (
+                                                <div className="w-8 md:w-16 h-0.5 bg-gray-200 mx-2 relative">
+                                                    <div className="absolute right-0 -top-1.5 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent border-l-[6px] border-l-gray-200"></div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Kanban Board Layout */}
+                            <div className="flex gap-4 overflow-x-auto pb-4 snap-x">
+                                {STAGES.map(stage => {
+                                    const productsInStage = filteredProducts.filter((p: ProductionProduct) => 
+                                        (p.inventory?.[stage.key] || 0) > 0 || (p.in_production?.[stage.key] || 0) > 0
+                                    );
+
+                                    return (
+                                        <div key={stage.key} className="min-w-[280px] w-[280px] flex flex-col bg-gray-50/50 rounded-xl border border-gray-200 snap-center">
+                                            <div className={`p-3 border-b rounded-t-xl ${getStageColor(stage.key)} flex justify-between items-center`}>
+                                                <h3 className="font-bold text-sm">{stage.label}</h3>
+                                                <Badge variant="outline" className="bg-white/80 text-xs px-2 py-0">
+                                                    {productsInStage.length} Items
+                                                </Badge>
+                                            </div>
+                                            <div className="p-3 flex-1 overflow-y-auto max-h-[600px] space-y-3">
+                                                {productsInStage.length === 0 ? (
+                                                    <div className="text-center p-4 text-xs text-muted-foreground border border-dashed rounded-lg bg-white/50">
+                                                        Empty Stage
+                                                    </div>
+                                                ) : (
+                                                    productsInStage.map((p: ProductionProduct) => {
+                                                        const inv = p.inventory?.[stage.key] || 0;
+                                                        const wip = p.in_production?.[stage.key] || 0;
+                                                        return (
+                                                            <div key={p.id} className="bg-white p-3 rounded-lg border shadow-sm hover:shadow-md transition-shadow">
+                                                                <div className="font-bold text-gray-900 text-sm">{p.product_type?.replace(/_/g, " ")}</div>
+                                                                <div className="text-[10px] text-muted-foreground font-medium mt-0.5 mb-2">
+                                                                    {p.animal_type} • {p.size_category?.replace(/_/g, " ")}
+                                                                </div>
+                                                                <div className="flex gap-2 mt-2">
+                                                                    {wip > 0 && (
+                                                                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] px-1.5 flex gap-1 items-center">
+                                                                            <Users className="w-3 h-3"/> WIP: {wip}
+                                                                        </Badge>
+                                                                    )}
+                                                                    {inv > 0 && (
+                                                                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px] px-1.5 flex gap-1 items-center">
+                                                                            <Layers className="w-3 h-3"/> Shelf: {inv}
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })
+                                                )}
+                                            </div>
+                                        </div>
                                     );
                                 })}
                             </div>
