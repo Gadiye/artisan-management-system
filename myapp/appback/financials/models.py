@@ -7,7 +7,7 @@ from products.models import Product
 
 class Payslip(models.Model):
     artisan = models.ForeignKey(Artisan, on_delete=models.PROTECT)
-    service_category = models.CharField(max_length=50, choices=Product.SERVICE_CATEGORIES, blank=True, null=True)
+    service_category = models.ForeignKey('products.ServiceCategory', on_delete=models.PROTECT, blank=True, null=True)
     generated_date = models.DateTimeField(auto_now_add=True, db_index=True)
     spreadsheet_file = models.FileField(upload_to='payslips/')
     total_payment = models.DecimalField(max_digits=12, decimal_places=2)
@@ -20,9 +20,10 @@ class Payslip(models.Model):
 
 class ServiceRate(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='payslip_service_rates', help_text="The product this service rate applies to.")
-    service_category = models.CharField(
-        max_length=50,
-        choices=Product.SERVICE_CATEGORIES,
+    service_category = models.ForeignKey(
+        'products.ServiceCategory',
+        on_delete=models.CASCADE,
+        related_name='financial_service_rates',
         help_text="The stage/service category this rate is for (e.g., CARVING, PAINTING)."
     )
     rate_per_unit = models.DecimalField(

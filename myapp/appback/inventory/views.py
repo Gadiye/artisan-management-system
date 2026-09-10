@@ -211,9 +211,10 @@ class UnifiedInventoryViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def metadata(self, request):
+        from products.models import ServiceCategory
         service_categories = [
-            {'value': sc[0], 'label': sc[1]}
-            for sc in Inventory.SERVICE_CATEGORIES
+            {'value': sc.name, 'label': sc.display_name}
+            for sc in ServiceCategory.objects.all()
         ]
         return Response({
             'filterable_fields': ['service_category', 'quantity', 'product', 'product__product_type', 'product__size_category'],

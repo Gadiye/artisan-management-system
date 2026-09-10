@@ -365,9 +365,10 @@ class PayslipViewSet(viewsets.ModelViewSet):
         GET /api/payslips/metadata/
         Provides metadata for payslip-related operations.
         """
+        from products.models import ServiceCategory
         metadata = {
             "service_categories": [
-                {"value": choice[0], "label": choice[1]} for choice in Product.SERVICE_CATEGORIES
+                {"value": sc.name, "label": sc.display_name} for sc in ServiceCategory.objects.all()
             ],
             "filterable_fields": [
                 "artisan", "service_category", "period_start_gte", "period_end_lte",

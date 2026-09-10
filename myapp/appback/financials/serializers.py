@@ -90,7 +90,8 @@ class PayslipListSerializer(serializers.ModelSerializer):
     Serializer for listing Payslips.
     """
     artisan = ArtisanLiteSerializer(read_only=True)
-    service_category_display = serializers.CharField(source='get_service_category_display', read_only=True)
+    service_category = serializers.CharField(source='service_category.name', read_only=True, allow_null=True)
+    service_category_display = serializers.CharField(source='service_category.display_name', read_only=True, allow_null=True)
     total_advances_deducted = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
 
@@ -128,6 +129,7 @@ class PayslipCreateUpdateSerializer(serializers.ModelSerializer):
     Serializer for creating and updating Payslips.
     """
     artisan = serializers.PrimaryKeyRelatedField(queryset=Artisan.objects.all())
+    service_category = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     spreadsheet_file = serializers.FileField(write_only=True, required=False, allow_null=True)
     spreadsheet_file_base64 = serializers.CharField(write_only=True, required=False, allow_null=True)
 
@@ -140,13 +142,10 @@ class PayslipCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payslip
         fields = [
-            'id', 'artisan', 'service_category', 'total_payment',
+            'id', 'artisan', 'service_category', 'total_payment', 'total_advances_deducted',
             'period_start', 'period_end', 'spreadsheet_file', 'spreadsheet_file_base64',
             'job_item_ids', 'generated_date', 'spreadsheet_file_url'
         ]
-        extra_kwargs = {
-            'service_category': {'required': True, 'allow_null': False, 'allow_blank': False}
-        }
 
     def get_spreadsheet_file_url(self, obj):
         if obj.spreadsheet_file:
@@ -154,9 +153,23 @@ class PayslipCreateUpdateSerializer(serializers.ModelSerializer):
         return None
 
     def validate_service_category(self, value):
-        if value not in [choice[0] for choice in Product.SERVICE_CATEGORIES]:
-            raise serializers.ValidationError("Invalid service category.")
-        return value
+        if not value:
+            return None
+        from products.models import ServiceCategory
+        if isinstance(value, ServiceCategory):
+            return value
+        if str(value).isdigit():
+            try:
+                return ServiceCategory.objects.get(id=int(value))
+            except ServiceCategory.DoesNotExist:
+                raise serializers.ValidationError(f"ServiceCategory with ID {value} does not exist.")
+        try:
+            return ServiceCategory.objects.get(name=value)
+        except ServiceCategory.DoesNotExist:
+            sc = ServiceCategory.objects.filter(display_name__iexact=value).first()
+            if sc:
+                return sc
+            raise serializers.ValidationError(f"Invalid service category: {value}")
 
     def validate(self, data):
         if 'period_start' in data and 'period_end' in data:
@@ -281,10 +294,12 @@ class PayslipCreateUpdateSerializer(serializers.ModelSerializer):
 
 class ServiceRateSerializer(serializers.ModelSerializer):
     product = ProductLiteSerializer(read_only=True)
+    service_category = serializers.CharField(source='service_category.name', read_only=True)
+    service_category_display = serializers.CharField(source='service_category.display_name', read_only=True)
 
     class Meta:
         model = ServiceRate
-        fields = ['id', 'product', 'service_category', 'rate_per_unit', 'is_active', 'created_at', 'updated_at']
+        fields = ['id', 'product', 'service_category', 'service_category_display', 'rate_per_unit', 'is_active', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
 
 class ArtisanAdvanceSerializer(serializers.ModelSerializer):

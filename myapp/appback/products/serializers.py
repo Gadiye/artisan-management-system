@@ -1,29 +1,57 @@
 # products/serializers.py
 from rest_framework import serializers
-from .models import Product, PriceHistory
+from .models import Product, PriceHistory, ProductType, SizeCategory, ServiceCategory
 from datetime import date
 from django.utils import timezone
+from django.db import models
+
+
+# --- Lookup Serializers ---
+
+class ProductTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductType
+        fields = ['id', 'name', 'display_name']
+
+
+class SizeCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SizeCategory
+        fields = ['id', 'name', 'display_name']
+
+
+class ServiceCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ServiceCategory
+        fields = ['id', 'name', 'display_name']
 
 
 # --- Product Serializers ---
 
 class ProductLiteSerializer(serializers.ModelSerializer):
     """Lite serializer for nested Product details in PriceHistory."""
+    product_type = serializers.CharField(source='product_type.name', read_only=True)
+    product_type_display = serializers.CharField(source='product_type.display_name', read_only=True)
+    
     class Meta:
         model = Product
-        fields = ['id', 'product_type', 'animal_type']
+        fields = ['id', 'product_type', 'product_type_display', 'animal_type']
 
 
 class ProductSerializer(serializers.ModelSerializer):
     """Serializer for basic Product listing."""
-    product_type_display = serializers.CharField(source='get_product_type_display', read_only=True)
-    size_category_display = serializers.CharField(source='get_size_category_display', read_only=True)
+    product_type = serializers.CharField(source='product_type.name', read_only=True)
+    product_type_id = serializers.IntegerField(source='product_type.id', read_only=True)
+    product_type_display = serializers.CharField(source='product_type.display_name', read_only=True)
+    size_category = serializers.CharField(source='size_category.name', read_only=True, allow_null=True)
+    size_category_id = serializers.IntegerField(source='size_category.id', read_only=True, allow_null=True)
+    size_category_display = serializers.CharField(source='size_category.display_name', read_only=True, allow_null=True)
 
     class Meta:
         model = Product
         fields = [
-            'id', 'product_type', 'product_type_display', 'animal_type',
-            'size_category',
+            'id', 'product_type', 'product_type_id', 'product_type_display', 'animal_type',
+            'size_category', 'size_category_id',
             'size_category_display', 'base_price', 'is_active', 'last_price_update', 'unit_of_measure'
         ]
         read_only_fields = ['last_price_update']
@@ -37,6 +65,9 @@ class ProductDetailSerializer(ProductSerializer):
 
 class ProductCreateUpdateSerializer(serializers.ModelSerializer):
     """Serializer for creating and updating Products."""
+    product_type = serializers.CharField(required=True)
+    size_category = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
     class Meta:
         model = Product
         fields = [
@@ -49,6 +80,38 @@ class ProductCreateUpdateSerializer(serializers.ModelSerializer):
             'base_price': {'required': True},
         }
 
+    def validate_product_type(self, value):
+        if not value:
+            raise serializers.ValidationError("Product type is required.")
+        if str(value).isdigit():
+            try:
+                return ProductType.objects.get(id=int(value))
+            except ProductType.DoesNotExist:
+                raise serializers.ValidationError(f"ProductType with ID {value} does not exist.")
+        try:
+            return ProductType.objects.get(name=value)
+        except ProductType.DoesNotExist:
+            pt = ProductType.objects.filter(display_name__iexact=value).first()
+            if pt:
+                return pt
+            raise serializers.ValidationError(f"ProductType '{value}' does not exist.")
+
+    def validate_size_category(self, value):
+        if not value:
+            return None
+        if str(value).isdigit():
+            try:
+                return SizeCategory.objects.get(id=int(value))
+            except SizeCategory.DoesNotExist:
+                raise serializers.ValidationError(f"SizeCategory with ID {value} does not exist.")
+        try:
+            return SizeCategory.objects.get(name=value)
+        except SizeCategory.DoesNotExist:
+            sc = SizeCategory.objects.filter(display_name__iexact=value).first()
+            if sc:
+                return sc
+            raise serializers.ValidationError(f"SizeCategory '{value}' does not exist.")
+
     def validate_base_price(self, value):
         if value < 0:
             raise serializers.ValidationError("Base price cannot be negative.")
@@ -59,10 +122,14 @@ class ProductCreateUpdateSerializer(serializers.ModelSerializer):
         if self.instance:
             queryset = queryset.exclude(pk=self.instance.pk)
 
+        product_type = data.get('product_type', self.instance.product_type if self.instance else None)
+        animal_type = data.get('animal_type', self.instance.animal_type if self.instance else None)
+        size_category = data.get('size_category', self.instance.size_category if self.instance else None)
+
         if queryset.filter(
-            product_type=data.get('product_type', self.instance.product_type if self.instance else None),
-            animal_type=data.get('animal_type', self.instance.animal_type if self.instance else None),
-            size_category=data.get('size_category', self.instance.size_category if self.instance else None)
+            product_type=product_type,
+            animal_type=animal_type,
+            size_category=size_category
         ).exists():
             raise serializers.ValidationError(
                 "A product with this combination of product type, animal type, and size already exists."
@@ -90,7 +157,6 @@ class PriceHistoryCreateUpdateSerializer(serializers.ModelSerializer):
     product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
     effective_date = serializers.DateTimeField(required=False, allow_null=True)
     changed_by = serializers.CharField(max_length=100, required=False, allow_blank=True)
-
 
     class Meta:
         model = PriceHistory

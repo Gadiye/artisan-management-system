@@ -65,14 +65,15 @@ class Command(BaseCommand):
         self.stdout.write(f'Seeded {created} customers.')
 
     def seed_products(self):
-        product_types = [t[0] for t in Product.PRODUCT_TYPES]
+        from products.models import ProductType, SizeCategory
+        product_types = list(ProductType.objects.all())
         animal_types = ['Elephant', 'Giraffe', 'Lion', 'Rhino', 'Zebra', 'Hippo', 'Cheetah', 'Leopard']
-        sizes = [s[0] for s in Product.SIZE_CATEGORIES]
+        sizes = list(SizeCategory.objects.all())
         
         products_created = 0
         for p_type in product_types[:10]:
             for a_type in animal_types[:4]:
-                size = random.choice(sizes[:4])
+                size = random.choice(sizes[:4]) if sizes else None
                 base_price = Decimal(random.randint(5, 50) * 100)
                 Product.objects.get_or_create(
                     product_type=p_type,
@@ -97,8 +98,9 @@ class Command(BaseCommand):
         self.stdout.write(f'Seeded {created} artisans.')
 
     def seed_service_rates(self):
+        from products.models import ServiceCategory
         products = Product.objects.all()
-        categories = [c[0] for c in Product.SERVICE_CATEGORIES]
+        categories = list(ServiceCategory.objects.all())
         
         rates_created = 0
         for product in products:
@@ -112,13 +114,14 @@ class Command(BaseCommand):
         self.stdout.write(f'Seeded {rates_created} service rates.')
 
     def seed_inventory(self):
+        from products.models import ServiceCategory
         products = Product.objects.all()
-        categories = [c[0] for c in Product.SERVICE_CATEGORIES]
+        categories = list(ServiceCategory.objects.all())
         
         inventory_created = 0
         stock_created = 0
         for product in products:
-            if random.random() < 0.7:  # 70% chance to have WIP
+            if random.random() < 0.7 and categories:  # 70% chance to have WIP
                 category = random.choice(categories[:4])
                 Inventory.objects.get_or_create(
                     product=product,
@@ -144,13 +147,14 @@ class Command(BaseCommand):
         self.stdout.write(f'Seeded {inventory_created} WIP inventory records and {stock_created} finished stock records.')
 
     def seed_jobs(self):
+        from products.models import ServiceCategory
         artisans = Artisan.objects.all()
         products = Product.objects.all()
-        categories = [c[0] for c in Product.SERVICE_CATEGORIES]
+        categories = list(ServiceCategory.objects.all())
         
         for i in range(150):  # 150 jobs over 90 days
             job_date = random_date_in_past(max_days_ago=90)
-            category = random.choice(categories[:5])
+            category = random.choice(categories[:5]) if categories else None
             
             status_choices = ['COMPLETED'] * 60 + ['PARTIALLY_RECEIVED'] * 20 + ['IN_PROGRESS'] * 20
             target_status = random.choice(status_choices)

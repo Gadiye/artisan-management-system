@@ -12,9 +12,9 @@ class InventoryFilter(filters.FilterSet):
     """
     Filter class for Inventory model with advanced filtering options.
     """
-    service_category = filters.ChoiceFilter(
-        choices=Product.SERVICE_CATEGORIES,
-        field_name='service_category',
+    service_category = filters.CharFilter(
+        field_name='service_category__name',
+        lookup_expr='iexact',
         help_text="Filter by service category"
     )
     
@@ -24,9 +24,9 @@ class InventoryFilter(filters.FilterSet):
         help_text="Filter by specific product"
     )
     
-    product_type = filters.ChoiceFilter(
-        choices=Product.PRODUCT_TYPES,
-        field_name='product__product_type',
+    product_type = filters.CharFilter(
+        field_name='product__product_type__name',
+        lookup_expr='iexact',
         help_text="Filter by product type"
     )
     
@@ -36,9 +36,9 @@ class InventoryFilter(filters.FilterSet):
         help_text="Filter by animal type (case-insensitive partial match)"
     )
     
-    size_category = filters.ChoiceFilter(
-        choices=Product.SIZE_CATEGORIES,
-        field_name='product__size_category',
+    size_category = filters.CharFilter(
+        field_name='product__size_category__name',
+        lookup_expr='iexact',
         help_text="Filter by size category"
     )
     
@@ -298,4 +298,4 @@ class InventoryFilterHelper:
         """
         Exclude FINISHED service category from queryset.
         """
-        return queryset.exclude(service_category='FINISHED')
+        return queryset.exclude(service_category__name='FINISHED')

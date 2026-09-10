@@ -13,9 +13,12 @@ class ArtisanJobItemLiteSerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
 
 class ProductJobItemLiteSerializer(serializers.ModelSerializer):
+    product_type = serializers.CharField(source='product_type.name', read_only=True)
+    product_type_display = serializers.CharField(source='product_type.display_name', read_only=True)
+
     class Meta:
         model = Product
-        fields = ['id', 'product_type', 'animal_type', 'base_price']
+        fields = ['id', 'product_type', 'product_type_display', 'animal_type', 'base_price']
 
 
 # --- JobItem Serializers ---
@@ -185,7 +188,9 @@ class JobItemDetailListSerializer(serializers.ModelSerializer):
 
 class JobListSerializer(serializers.ModelSerializer):
     """Serializer for listing Jobs."""
-    service_category_display = serializers.CharField(source='get_service_category_display', read_only=True)
+    service_category = serializers.CharField(source='service_category.name', read_only=True)
+    service_category_id = serializers.IntegerField(source='service_category.id', read_only=True)
+    service_category_display = serializers.CharField(source='service_category.display_name', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     total_cost = serializers.FloatField(read_only=True)
     total_final_payment = serializers.FloatField(read_only=True)
@@ -194,7 +199,7 @@ class JobListSerializer(serializers.ModelSerializer):
         model = Job
         fields = [
             'job_id', 'created_date', 'created_by', 'status', 'status_display',
-            'service_category', 'service_category_display', 'notes',
+            'service_category', 'service_category_id', 'service_category_display', 'notes',
             'total_cost', 'total_final_payment', 'artisans_involved'
         ]
         read_only_fields = ['created_date', 'status', 'total_cost', 'total_final_payment', 'artisans_involved']
@@ -210,6 +215,7 @@ class JobDetailSerializer(JobListSerializer):
 
 class JobCreateUpdateSerializer(serializers.ModelSerializer):
     """Serializer for creating and updating Jobs."""
+    service_category = serializers.CharField(required=True)
     items = JobItemCreateUpdateSerializer(many=True, write_only=True)
     created_by = serializers.CharField(read_only=True)
     status = serializers.CharField(read_only=True)
@@ -222,6 +228,23 @@ class JobCreateUpdateSerializer(serializers.ModelSerializer):
             'service_category', 'notes', 'items', 'bypass_inventory_deduction'
         ]
         read_only_fields = ['job_id', 'created_date']
+
+    def validate_service_category(self, value):
+        from products.models import ServiceCategory
+        if isinstance(value, ServiceCategory):
+            return value
+        if str(value).isdigit():
+            try:
+                return ServiceCategory.objects.get(id=int(value))
+            except ServiceCategory.DoesNotExist:
+                raise serializers.ValidationError(f"ServiceCategory with ID {value} does not exist.")
+        try:
+            return ServiceCategory.objects.get(name=value)
+        except ServiceCategory.DoesNotExist:
+            sc = ServiceCategory.objects.filter(display_name__iexact=value).first()
+            if sc:
+                return sc
+            raise serializers.ValidationError(f"Invalid service category: {value}")
 
     def validate_items(self, value):
         if not value:
@@ -259,19 +282,16 @@ class JobCreateUpdateSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-    def validate_service_category(self, value):
-        if value not in [choice[0] for choice in Product.SERVICE_CATEGORIES]:
-            raise serializers.ValidationError("Invalid service category.")
-        return value
-
 
 class ServiceRateSerializer(serializers.ModelSerializer):
     product = ProductJobItemLiteSerializer(read_only=True)
+    service_category = serializers.CharField(source='service_category.name', read_only=True)
+    service_category_display = serializers.CharField(source='service_category.display_name', read_only=True)
+    rate_per_unit = serializers.FloatField()
 
     class Meta:
         model = ServiceRate
-        fields = ['id', 'product', 'service_category', 'rate_per_unit']
-    rate_per_unit = serializers.FloatField()
+        fields = ['id', 'product', 'service_category', 'service_category_display', 'rate_per_unit']
 
 
 class RateDetailSerializer(serializers.Serializer):

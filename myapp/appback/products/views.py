@@ -10,19 +10,19 @@ from django.db import transaction
 from django.utils import timezone
 from datetime import datetime
 from rest_framework.decorators import api_view
-from .models import Product, PriceHistory
-
-from .models import Product, PriceHistory
- # Import choices directly
+from .models import Product, PriceHistory, ProductType, SizeCategory, ServiceCategory
 from .serializers import (
     ProductSerializer,
     ProductDetailSerializer,
     ProductCreateUpdateSerializer,
     PriceHistoryListSerializer,
     PriceHistoryCreateUpdateSerializer,
-    ProductLiteSerializer # Used by PriceHistoryListSerializer
+    ProductLiteSerializer,
+    ProductTypeSerializer,
+    SizeCategorySerializer,
+    ServiceCategorySerializer,
 )
-from .filters import ProductFilter, PriceHistoryFilter # Import both filters
+from .filters import ProductFilter, PriceHistoryFilter
 from jobs.models import JobTransaction
 from jobs.serializers import JobTransactionSerializer
 
@@ -226,16 +226,15 @@ class ProductViewSet(viewsets.ModelViewSet):
         Provide metadata for product choices to populate frontend dropdowns.
         """
         data = {
-    'product_types': [
-        {'value': choice[0], 'label': choice[1]}
-        for choice in Product.PRODUCT_TYPES
-    ],
-    'size_categories': [
-        {'value': choice[0], 'label': choice[1]}
-        for choice in Product.SIZE_CATEGORIES
-    ]
-}
-
+            'product_types': [
+                {'value': pt.name, 'label': pt.display_name, 'id': pt.id}
+                for pt in ProductType.objects.all().order_by('display_name')
+            ],
+            'size_categories': [
+                {'value': sc.name, 'label': sc.display_name, 'id': sc.id}
+                for sc in SizeCategory.objects.all().order_by('display_name')
+            ]
+        }
         return Response(data)
 
     @action(detail=False, methods=['get'], url_path='missing-service-rates')
@@ -445,26 +444,61 @@ def get_price(request):
                         status=status.HTTP_400_BAD_REQUEST)
 
     try:
+        from django.db.models import Q
+        # Support name, display_name, or ID for product_type and size_category
+        pt_q = Q(product_type__id=int(product_type)) if str(product_type).isdigit() else (Q(product_type__name__iexact=product_type) | Q(product_type__display_name__iexact=product_type))
+        sc_q = Q(size_category__id=int(size_category)) if str(size_category).isdigit() else (Q(size_category__name__iexact=size_category) | Q(size_category__display_name__iexact=size_category))
+
         product = Product.objects.get(
-            product_type__iexact=product_type,
+            pt_q,
+            sc_q,
             animal_type__iexact=animal_type,
-            size_category__iexact=size_category,
             is_active=True
         )
         
         service_rate_per_unit = None
         try:
-            service_rate = ServiceRate.objects.get(product=product, service_category=service_category)
+            srv_q = Q(service_category__id=int(service_category)) if str(service_category).isdigit() else (Q(service_category__name__iexact=service_category) | Q(service_category__display_name__iexact=service_category))
+            service_rate = ServiceRate.objects.get(srv_q, product=product)
             service_rate_per_unit = service_rate.rate_per_unit
-        except ObjectDoesNotExist:
-            # If no specific service rate is found, service_rate_per_unit remains None
+        except (ObjectDoesNotExist, Exception):
             pass
 
         return Response({
             "id": product.id,
             "price": product.base_price,
             "service_rate_per_unit": service_rate_per_unit,
-            "unit_of_measure": product.unit_of_measure # Add this line
+            "unit_of_measure": product.unit_of_measure
         }, status=status.HTTP_200_OK)
     except Product.DoesNotExist:
         return Response({"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+class ProductTypeViewSet(viewsets.ModelViewSet):
+    queryset = ProductType.objects.all().order_by('display_name')
+    serializer_class = ProductTypeSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['name', 'display_name']
+    ordering_fields = ['name', 'display_name']
+    pagination_class = None
+
+
+class SizeCategoryViewSet(viewsets.ModelViewSet):
+    queryset = SizeCategory.objects.all().order_by('display_name')
+    serializer_class = SizeCategorySerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['name', 'display_name']
+    ordering_fields = ['name', 'display_name']
+    pagination_class = None
+
+
+class ServiceCategoryViewSet(viewsets.ModelViewSet):
+    queryset = ServiceCategory.objects.all().order_by('display_name')
+    serializer_class = ServiceCategorySerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['name', 'display_name']
+    ordering_fields = ['name', 'display_name']
+    pagination_class = None

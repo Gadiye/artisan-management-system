@@ -9,7 +9,7 @@ class JobFilter(django_filters.FilterSet):
     created_date_gte = django_filters.DateFilter(field_name='created_date', lookup_expr='date__gte', help_text='Jobs created on or after (YYYY-MM-DD).')
     created_date_lte = django_filters.DateFilter(field_name='created_date', lookup_expr='date__lte', help_text='Jobs created on or before (YYYY-MM-DD).')
     status = django_filters.ChoiceFilter(choices=Job.STATUS_CHOICES, help_text='Filter by job status.')
-    service_category = django_filters.ChoiceFilter(choices=Product.SERVICE_CATEGORIES, help_text='Filter by service category.')
+    service_category = django_filters.CharFilter(field_name='service_category__name', lookup_expr='iexact', help_text='Filter by service category.')
     created_by = django_filters.CharFilter(lookup_expr='icontains', help_text='Search by partial creator name.')
 
     class Meta:
@@ -36,9 +36,9 @@ class JobItemFilter(django_filters.FilterSet):
     created_date_gte = django_filters.DateFilter(field_name='job__created_date', lookup_expr='date__gte', help_text='Job created on or after (YYYY-MM-DD).')
     created_date_lte = django_filters.DateFilter(field_name='job__created_date', lookup_expr='date__lte', help_text='Job created on or before (YYYY-MM-DD).')
 
-    service_category = django_filters.ChoiceFilter(
-        field_name='job__service_category',
-        choices=Product.SERVICE_CATEGORIES,
+    service_category = django_filters.CharFilter(
+        field_name='job__service_category__name',
+        lookup_expr='iexact',
         help_text='Filter by service category.'
     )
 

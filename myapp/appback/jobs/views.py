@@ -907,31 +907,33 @@ class ServiceRateViewSet(viewsets.ModelViewSet):
         GET /api/service-rates/hierarchical/
         Returns a hierarchical view of service rates, grouped by product and animal.
         """
-        service_rates = ServiceRate.objects.select_related('product').values(
-            'product__product_type',
+        service_rates = ServiceRate.objects.select_related('product__product_type', 'product__size_category', 'service_category').values(
+            'product__product_type__name',
+            'product__product_type__display_name',
             'product__animal_type',
-            'product__size_category',
-            'service_category',
+            'product__size_category__name',
+            'product__size_category__display_name',
+            'service_category__name',
+            'service_category__display_name',
             'rate_per_unit'
         ).order_by(
-            'product__product_type', 'product__animal_type', 'product__size_category'
+            'product__product_type__name', 'product__animal_type', 'product__size_category__name'
         )
-
-        product_type_display = {choice[0]: choice[1] for choice in Product.PRODUCT_TYPES}
-        size_category_display = {choice[0]: choice[1] for choice in Product.SIZE_CATEGORIES}
 
         grouped_rates = defaultdict(list)
         for rate in service_rates:
-            key = (product_type_display.get(rate['product__product_type'], rate['product__product_type']), rate['product__animal_type'])
+            pt_disp = rate['product__product_type__display_name'] or rate['product__product_type__name'] or ''
+            key = (pt_disp, rate['product__animal_type'])
             grouped_rates[key].append(rate)
 
         output_data = []
         for (product_category, animal), rates in grouped_rates.items():
             rates_by_size = defaultdict(lambda: {'size': ''})
             for rate in rates:
-                size = size_category_display.get(rate['product__size_category'], rate['product__size_category'])
+                size = rate['product__size_category__display_name'] or rate['product__size_category__name'] or ''
+                cat_name = (rate['service_category__display_name'] or rate['service_category__name'] or '').title()
                 rates_by_size[size]['size'] = size
-                rates_by_size[size][rate['service_category'].capitalize()] = rate['rate_per_unit']
+                rates_by_size[size][cat_name] = rate['rate_per_unit']
             
             output_data.append({
                 'product_category': product_category,

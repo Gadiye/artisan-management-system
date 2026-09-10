@@ -4,19 +4,7 @@ from products.models import Product
 
 class Inventory(models.Model):
     product = models.ForeignKey(Product, on_delete=models.PROTECT)
-    service_category = models.CharField(
-        max_length=50, 
-        choices=[
-            ('DRAWING', 'Drawing'),
-            ('CARVING', 'Carving'),
-            ('CUTTING', 'Cutting'),
-            ('GOUGING', 'Gouging'),
-            ('SANDING', 'Sanding'),
-            ('PAINTING', 'Painting'),
-            ('FINISHING', 'Finishing'),
-            ('FINISHED', 'Finished'),
-        ]
-    )
+    service_category = models.ForeignKey('products.ServiceCategory', on_delete=models.PROTECT)
     quantity = models.PositiveIntegerField(default=0)
     average_cost = models.DecimalField(
         max_digits=10, 

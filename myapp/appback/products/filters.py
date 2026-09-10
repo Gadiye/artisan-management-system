@@ -3,16 +3,32 @@ import django_filters
 from .models import Product, PriceHistory
 
 
+from django.db import models
+
 class ProductFilter(django_filters.FilterSet):
     """
     FilterSet for Product model.
     """
-    product_type = django_filters.ChoiceFilter(choices=Product.PRODUCT_TYPES, help_text='Filter by product type.')
-    size_category = django_filters.ChoiceFilter(choices=Product.SIZE_CATEGORIES, help_text='Filter by size category.')
+    product_type = django_filters.CharFilter(method='filter_product_type', help_text='Filter by product type ID, code, or name.')
+    size_category = django_filters.CharFilter(method='filter_size_category', help_text='Filter by size category ID, code, or name.')
     animal_type = django_filters.CharFilter(lookup_expr='icontains', help_text='Search by partial animal type.')
     is_active = django_filters.BooleanFilter(help_text='Filter by active status (true/false).')
     base_price_gte = django_filters.NumberFilter(field_name='base_price', lookup_expr='gte', help_text='Filter by base price greater than or equal to.')
     base_price_lte = django_filters.NumberFilter(field_name='base_price', lookup_expr='lte', help_text='Filter by base price less than or equal to.')
+
+    def filter_product_type(self, queryset, name, value):
+        if not value:
+            return queryset
+        if str(value).isdigit():
+            return queryset.filter(models.Q(product_type__id=value) | models.Q(product_type__name=value))
+        return queryset.filter(models.Q(product_type__name__iexact=value) | models.Q(product_type__display_name__icontains=value))
+
+    def filter_size_category(self, queryset, name, value):
+        if not value:
+            return queryset
+        if str(value).isdigit():
+            return queryset.filter(models.Q(size_category__id=value) | models.Q(size_category__name=value))
+        return queryset.filter(models.Q(size_category__name__iexact=value) | models.Q(size_category__display_name__icontains=value))
 
     class Meta:
         model = Product

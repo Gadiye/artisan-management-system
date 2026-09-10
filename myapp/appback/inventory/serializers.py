@@ -18,9 +18,14 @@ class ProductSerializer(serializers.ModelSerializer):
     """
     Serializer for Product model to include in inventory responses.
     """
+    product_type = serializers.CharField(source='product_type.name', read_only=True)
+    product_type_display = serializers.CharField(source='product_type.display_name', read_only=True)
+    size_category = serializers.CharField(source='size_category.name', read_only=True, allow_null=True)
+    size_category_display = serializers.CharField(source='size_category.display_name', read_only=True, allow_null=True)
+
     class Meta:
         model = Product
-        fields = ['id', 'product_type', 'animal_type', 'size_category', 'unit_of_measure']
+        fields = ['id', 'product_type', 'product_type_display', 'animal_type', 'size_category', 'size_category_display', 'unit_of_measure']
         read_only_fields = ['id']
 
 
@@ -29,10 +34,13 @@ class InventorySerializer(serializers.ModelSerializer):
     Basic serializer for Inventory model.
     """
     product = ProductSerializer(read_only=True)
+    service_category = serializers.CharField(source='service_category.name', read_only=True)
+    service_category_id = serializers.IntegerField(source='service_category.id', read_only=True)
+    service_category_display = serializers.CharField(source='service_category.display_name', read_only=True)
     
     class Meta:
         model = Inventory
-        fields = ['id', 'product', 'service_category', 'quantity', 'average_cost', 'last_updated']
+        fields = ['id', 'product', 'service_category', 'service_category_id', 'service_category_display', 'quantity', 'average_cost', 'last_updated']
         read_only_fields = ['id', 'last_updated']
 
 
@@ -41,7 +49,7 @@ class InventoryDetailSerializer(InventorySerializer):
     Detailed serializer for Inventory model with additional fields.
     """
     class Meta(InventorySerializer.Meta):
-        fields = InventorySerializer.Meta.fields + ['created_at']  # Add any additional fields
+        fields = InventorySerializer.Meta.fields + ['created_at']
         read_only_fields = InventorySerializer.Meta.read_only_fields + ['created_at']
 
 
@@ -49,9 +57,28 @@ class InventoryCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for creating new inventory records.
     """
+    service_category = serializers.CharField()
+
     class Meta:
         model = Inventory
         fields = ['product', 'service_category', 'quantity', 'average_cost']
+    
+    def validate_service_category(self, value):
+        from products.models import ServiceCategory
+        if isinstance(value, ServiceCategory):
+            return value
+        if str(value).isdigit():
+            try:
+                return ServiceCategory.objects.get(id=int(value))
+            except ServiceCategory.DoesNotExist:
+                raise serializers.ValidationError(f"ServiceCategory with ID {value} does not exist.")
+        try:
+            return ServiceCategory.objects.get(name=value)
+        except ServiceCategory.DoesNotExist:
+            sc = ServiceCategory.objects.filter(display_name__iexact=value).first()
+            if sc:
+                return sc
+            raise serializers.ValidationError(f"ServiceCategory '{value}' does not exist.")
     
     def validate_quantity(self, value):
         """

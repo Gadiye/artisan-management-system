@@ -38,7 +38,7 @@ class Job(models.Model):
     def _save_after_transition(self, descriptor, source, target, **kwargs):
         self.save()
     
-    service_category = models.CharField(max_length=50, choices=Product.SERVICE_CATEGORIES)
+    service_category = models.ForeignKey('products.ServiceCategory', on_delete=models.PROTECT)
     notes = models.TextField(blank=True, null=True)
     
     # Denormalized fields for performance
@@ -121,17 +121,7 @@ class JobDelivery(models.Model):
 
 class ServiceRate(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='job_service_rates') # Link to specific product
-    SERVICE_CATEGORY_CHOICES = [
-        ('DRAWING', 'Drawing'),
-        ('CARVING', 'Carving'),
-        ('CUTTING', 'Cutting'),
-        ('GOUGING', 'Gouging'),
-        ('SANDING', 'Sanding'),
-        ('PAINTING', 'Painting'),
-        ('FINISHING', 'Finishing'),
-        ('FINISHED', 'Finished'),
-    ]
-    service_category = models.CharField(max_length=50, choices=SERVICE_CATEGORY_CHOICES)
+    service_category = models.ForeignKey('products.ServiceCategory', on_delete=models.CASCADE, related_name='job_service_rates')
     rate_per_unit = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
 
     class Meta:
@@ -145,8 +135,8 @@ class ServiceRate(models.Model):
 class JobTransaction(models.Model):
     job = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, related_name='transactions')
     product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name='job_transactions')
-    from_stage = models.CharField(max_length=50, choices=Product.SERVICE_CATEGORIES)
-    to_stage = models.CharField(max_length=50, choices=Product.SERVICE_CATEGORIES)
+    from_stage = models.ForeignKey('products.ServiceCategory', on_delete=models.PROTECT, related_name='transactions_from')
+    to_stage = models.ForeignKey('products.ServiceCategory', on_delete=models.PROTECT, related_name='transactions_to')
     quantity = models.PositiveIntegerField()
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
