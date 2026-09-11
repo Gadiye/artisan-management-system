@@ -29,7 +29,7 @@ class StandardResultsSetPagination(PageNumberPagination):
     max_page_size = 500
 
 class FinishedStockViewSet(viewsets.ModelViewSet):
-    queryset = FinishedStock.objects.all()
+    queryset = FinishedStock.objects.select_related('product__product_type', 'product__size_category').all()
     serializer_class = FinishedStockSerializer
     permission_classes = [AllowAny]
 
@@ -71,7 +71,7 @@ class FinishedStockViewSet(viewsets.ModelViewSet):
 
 
 class UnifiedInventoryViewSet(viewsets.ModelViewSet):
-    queryset = Inventory.objects.select_related('product').all()
+    queryset = Inventory.objects.select_related('product__product_type', 'product__size_category', 'service_category').all()
     permission_classes = [IsAdminOrReadOnly]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = InventoryFilter

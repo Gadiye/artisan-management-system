@@ -57,8 +57,8 @@ class JobViewSet(viewsets.ModelViewSet):
     lookup_field = 'job_id'
 
     def get_queryset(self):
-        # Prefetch items and artisans to completely eliminate the N+1 query bottleneck for 'artisans_involved'
-        return Job.objects.prefetch_related('items__artisan').all().order_by('-created_date')
+        # Select service_category and prefetch items and artisans to completely eliminate the N+1 query bottleneck
+        return Job.objects.select_related('service_category').prefetch_related('items__artisan').all().order_by('-created_date')
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -108,9 +108,9 @@ class JobViewSet(viewsets.ModelViewSet):
         """
         stats = {
             'total_jobs': Job.objects.count(),
-            'in_progress': Job.objects.filter(status='IN_PROGRESS').count(),
-            'partially_received': Job.objects.filter(status='PARTIALLY_RECEIVED').count(),
-            'completed': Job.objects.filter(status='COMPLETED').count(),
+            'in_progress': Job.objects.filter(_status='IN_PROGRESS').count(),
+            'partially_received': Job.objects.filter(_status='PARTIALLY_RECEIVED').count(),
+            'completed': Job.objects.filter(_status='COMPLETED').count(),
             'total_cost': Job.objects.aggregate(
                 total=Sum(F('items__original_amount'))
             )['total'] or 0,
@@ -877,17 +877,17 @@ class JobDeliveryViewSet(viewsets.ModelViewSet):
 
 
 class ServiceRateViewSet(viewsets.ModelViewSet):
-    queryset = ServiceRate.objects.select_related('product').all()
+    queryset = ServiceRate.objects.select_related('product__product_type', 'product__size_category', 'service_category').all()
     serializer_class = ServiceRateSerializer
     pagination_class = JobPagination
-    permission_classes = [AllowAny] # Adjust permissions as needed
+    permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['service_category', 'product']
-    search_fields = ['service_category', 'product__product_type', 'product__animal_type']
-    ordering_fields = ['service_category', 'rate_per_unit', 'product__product_type']
+    search_fields = ['service_category__name', 'product__product_type__name', 'product__animal_type']
+    ordering_fields = ['service_category__name', 'rate_per_unit', 'product__product_type__name']
 
     def get_queryset(self):
-        return ServiceRate.objects.select_related('product').order_by('product__product_type', 'product__animal_type', 'service_category')
+        return ServiceRate.objects.select_related('product__product_type', 'product__size_category', 'service_category').order_by('product__product_type__name', 'product__animal_type', 'service_category__name')
 
     def perform_create(self, serializer):
         # Custom logic for creating a service rate

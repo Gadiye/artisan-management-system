@@ -129,7 +129,7 @@ class PayslipViewSet(viewsets.ModelViewSet):
     - Generating new payslips from Job Items
     - Providing metadata
     """
-    queryset = Payslip.objects.all().select_related('artisan') # Optimize for list/detail
+    queryset = Payslip.objects.all().select_related('artisan', 'service_category')
     pagination_class = PayslipPagination
     permission_classes = [AllowAny] # Most operations require authentication
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -386,16 +386,16 @@ class ServiceRateViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing ServiceRate resources.
     """
-    queryset = ServiceRate.objects.all().select_related('product')
+    queryset = ServiceRate.objects.all().select_related('product__product_type', 'product__size_category', 'service_category')
     serializer_class = ServiceRateSerializer
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['product__product_type', 'product__animal_type', 'service_category']
-    ordering_fields = ['product__product_type', 'product__animal_type', 'service_category', 'rate_per_unit']
-    pagination_class = PayslipPagination # Re-use PayslipPagination for now
+    search_fields = ['product__product_type__name', 'product__animal_type', 'service_category__name']
+    ordering_fields = ['product__product_type__name', 'product__animal_type', 'service_category__name', 'rate_per_unit']
+    pagination_class = PayslipPagination
 
 class ArtisanAdvanceViewSet(viewsets.ModelViewSet):
-    queryset = ArtisanAdvance.objects.all()
+    queryset = ArtisanAdvance.objects.all().select_related('artisan')
     serializer_class = ArtisanAdvanceSerializer
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]

@@ -47,6 +47,7 @@ urlpatterns = [
     path('api/inventory/', include('inventory.urls')),
     path('api/orders/', include('orders.urls')),
     path('api/financials/', include('financials.urls')),
+    path('api/', include('financials.urls')),
     path('api/login/', json_login, name='json_login'),
     
     path('api/', include(standalone_router.urls)),

@@ -54,7 +54,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     - Get price history for a product (nested)
     """
 
-    queryset = Product.objects.all()
+    queryset = Product.objects.select_related('product_type', 'size_category').all()
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = ProductFilter
@@ -87,7 +87,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Filter queryset to show only active products by default."""
-        queryset = Product.objects.all()
+        queryset = Product.objects.select_related('product_type', 'size_category').all()
 
         if self.request.query_params.get('is_active') is None:
             queryset = queryset.filter(is_active=True)
