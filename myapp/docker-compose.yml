@@ -11,11 +11,9 @@ services:
     ports:
       - "8001:8000"
     env_file:
-      - ./appback/.env
+      - .env
     environment:
-      - DEMO_MODE=${DEMO_MODE:-False}
-      - DEMO_DATABASE_URL=${DEMO_DATABASE_URL}
-      - DATABASE_URL=${DATABASE_URL}
+      - DEMO_MODE=True
     restart: unless-stopped
 
   frontend:
