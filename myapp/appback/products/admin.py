@@ -25,6 +25,8 @@ class ProductAdmin(admin.ModelAdmin):
     list_filter = ('product_type', 'animal_type', 'size_category', 'unit_of_measure', 'is_active')
     search_fields = ('product_type__name', 'product_type__display_name', 'animal_type', 'size_category__name', 'size_category__display_name')
     autocomplete_fields = ('product_type', 'size_category')
+    list_select_related = ('product_type', 'size_category')
+    list_per_page = 50
     list_editable = ('base_price', 'is_active')
     ordering = ('id',)
 
@@ -33,4 +35,5 @@ class PriceHistoryAdmin(admin.ModelAdmin):
     list_display = ('product', 'old_price', 'new_price', 'effective_date', 'changed_by')
     list_filter = ('effective_date', 'changed_by')
     search_fields = ('product__product_type__name', 'product__product_type__display_name', 'product__animal_type', 'changed_by')
+    list_select_related = ('product__product_type', 'product__size_category')
     readonly_fields = ('effective_date',)

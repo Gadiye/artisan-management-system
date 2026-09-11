@@ -24,8 +24,11 @@ class JobItemForPendingPaymentSerializer(serializers.ModelSerializer):
         fields = ['id', 'product', 'quantity_accepted', 'final_payment']
 
     def get_product(self, obj):
+        if not obj.product:
+            return None
         return {
-            'product_type': obj.product.product_type,
+            'product_type': obj.product.product_type.name if obj.product.product_type else None,
+            'product_type_display': obj.product.product_type.display_name if obj.product.product_type else None,
             'animal_type': obj.product.animal_type,
         }
 

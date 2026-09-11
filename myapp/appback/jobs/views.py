@@ -274,7 +274,7 @@ class JobViewSet(viewsets.ModelViewSet):
 
         # --- Production by Product Category ---
         prod_by_category = deliveries.values(
-            category_name=F('job_item__product__product_type')
+            category_name=F('job_item__product__product_type__name')
         ).annotate(
             value=Sum('quantity_accepted')
         ).order_by('-value')[:5]
@@ -300,7 +300,7 @@ class JobViewSet(viewsets.ModelViewSet):
 
         # --- Financial / Revenue ---
         revenue_by_category = orders.values(
-            category_name=F('product__product_type')
+            category_name=F('product__product_type__name')
         ).annotate(
             value=Sum(F('quantity') * F('unit_price'), output_field=DecimalField(max_digits=20, decimal_places=2))
         ).order_by('-value')[:5]
@@ -309,7 +309,7 @@ class JobViewSet(viewsets.ModelViewSet):
         cost_by_category = job_items.filter(
             quantity_accepted__gt=0
         ).values(
-            category_name=F('product__product_type')
+            category_name=F('product__product_type__name')
         ).annotate(
             total_cost=Sum('final_payment', output_field=DecimalField(max_digits=20, decimal_places=2))
         )
