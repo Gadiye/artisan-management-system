@@ -7,6 +7,7 @@ class ServiceRateAdmin(admin.ModelAdmin):
     list_select_related = ('product__product_type', 'product__size_category', 'service_category')
     list_filter = ('service_category',)
     search_fields = ('product__product_type__name', 'product__product_type__display_name', 'product__animal_type')
+    autocomplete_fields = ('product', 'service_category')
 
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
@@ -15,6 +16,7 @@ class JobAdmin(admin.ModelAdmin):
     list_filter = ('service_category', 'created_date')
     search_fields = ('job_id', 'created_by')
     readonly_fields = ('job_id',)
+    autocomplete_fields = ('service_category',)
 
 @admin.register(JobItem)
 class JobItemAdmin(admin.ModelAdmin):
@@ -22,4 +24,5 @@ class JobItemAdmin(admin.ModelAdmin):
     list_select_related = ('job', 'artisan', 'product__product_type', 'product__size_category')
     list_filter = ('job__service_category', 'artisan')
     search_fields = ('job__job_id', 'artisan__name', 'product__product_type__name', 'product__product_type__display_name')
+    autocomplete_fields = ('job', 'artisan', 'product')
     

@@ -8,6 +8,7 @@ class PayslipAdmin(admin.ModelAdmin):
     list_select_related = ('artisan', 'service_category')
     list_filter = ('service_category', 'generated_date')
     search_fields = ('artisan__name',)
+    autocomplete_fields = ('artisan', 'service_category')
 
 @admin.register(ServiceRate)
 class FinancialServiceRateAdmin(admin.ModelAdmin):
@@ -15,6 +16,7 @@ class FinancialServiceRateAdmin(admin.ModelAdmin):
     list_select_related = ('product__product_type', 'product__size_category', 'service_category')
     list_filter = ('service_category', 'is_active')
     search_fields = ('product__product_type__name', 'product__animal_type')
+    autocomplete_fields = ('product', 'service_category')
 
 @admin.register(ArtisanAdvance)
 class ArtisanAdvanceAdmin(admin.ModelAdmin):
@@ -22,4 +24,5 @@ class ArtisanAdvanceAdmin(admin.ModelAdmin):
     list_select_related = ('artisan',)
     list_filter = ('is_settled', 'date_given')
     search_fields = ('artisan__name',)
+    autocomplete_fields = ('artisan',)
 

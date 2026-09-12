@@ -30,10 +30,14 @@ class ProductAdmin(admin.ModelAdmin):
     list_editable = ('base_price', 'is_active')
     ordering = ('id',)
 
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('product_type', 'size_category')
+
 @admin.register(PriceHistory)
 class PriceHistoryAdmin(admin.ModelAdmin):
     list_display = ('product', 'old_price', 'new_price', 'effective_date', 'changed_by')
     list_filter = ('effective_date', 'changed_by')
     search_fields = ('product__product_type__name', 'product__product_type__display_name', 'product__animal_type', 'changed_by')
+    autocomplete_fields = ('product',)
     list_select_related = ('product__product_type', 'product__size_category')
     readonly_fields = ('effective_date',)

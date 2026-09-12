@@ -55,6 +55,15 @@ class FinishedStockAdmin(admin.ModelAdmin):
     list_select_related = ('product__product_type', 'product__size_category')
     search_fields = ('product__product_type__name', 'product__product_type__display_name', 'product__animal_type')
     list_filter = ('product__product_type', 'product__animal_type')
+    autocomplete_fields = ('product',)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('product__product_type', 'product__size_category')
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'product':
+            kwargs['queryset'] = Product.objects.select_related('product_type', 'size_category')
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def get_fieldsets(self, request, obj=None):
         fieldsets = (
@@ -126,6 +135,15 @@ class InventoryAdmin(admin.ModelAdmin):
     list_select_related = ('product__product_type', 'product__size_category', 'service_category')
     search_fields = ('product__product_type__name', 'product__product_type__display_name', 'product__animal_type')
     list_filter = ('service_category', 'product__product_type', 'product__animal_type')
+    autocomplete_fields = ('product', 'service_category')
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('product__product_type', 'product__size_category', 'service_category')
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'product':
+            kwargs['queryset'] = Product.objects.select_related('product_type', 'size_category')
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def get_fieldsets(self, request, obj=None):
         fieldsets = (
