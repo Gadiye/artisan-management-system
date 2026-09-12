@@ -51,7 +51,6 @@ class FinishedStockAdminForm(forms.ModelForm):
 
 class FinishedStockAdmin(admin.ModelAdmin):
     form = FinishedStockAdminForm
-    autocomplete_fields = ('product',)
     list_display = ('product', 'display_quantity', 'average_cost', 'last_updated')
     list_select_related = ('product__product_type', 'product__size_category')
     search_fields = ('product__product_type__name', 'product__product_type__display_name', 'product__animal_type')
@@ -123,7 +122,6 @@ class InventoryAdminForm(forms.ModelForm):
 
 class InventoryAdmin(admin.ModelAdmin):
     form = InventoryAdminForm
-    autocomplete_fields = ('product', 'service_category')
     list_display = ('product', 'service_category', 'display_quantity', 'average_cost', 'last_updated')
     list_select_related = ('product__product_type', 'product__size_category', 'service_category')
     search_fields = ('product__product_type__name', 'product__product_type__display_name', 'product__animal_type')
