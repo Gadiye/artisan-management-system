@@ -40,6 +40,14 @@ export function useProductionGuide() {
   return useApi<any>("/jobs/production-guide/");
 }
 
+export function useProductMetadata() {
+  return useApi<{
+    product_types: { value: string, label: string, id: number }[];
+    size_categories: { value: string, label: string, id: number }[];
+    production_chain_map: Record<string, string[]>;
+  }>("/products/metadata/", { revalidateOnFocus: true, errorRetryCount: 3 });
+}
+
 export function useReports(startDate?: string, endDate?: string) {
   const query = new URLSearchParams()
   if (startDate) query.append('start_date', startDate)

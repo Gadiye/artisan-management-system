@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Calculator, Check, Loader2, AlertCircle, Sparkles, FileSpreadsheet, Send, Copy, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Calculator, Check, Loader2, AlertCircle, Sparkles, FileSpreadsheet, Send, Copy, RotateCcw, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -23,7 +23,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 
-import { useArtisans, useInventory } from '@/hooks/useResource';
+import { useArtisans, useInventory, useProductMetadata } from '@/hooks/useResource';
 import { useCreateJob } from '@/hooks/useCreateJob';
 import { JobItemPayload, CreateJobPayload } from '@/lib/api/types';
 import { InventoryItem } from '@/types';
@@ -86,6 +86,7 @@ export default function CreateJobPage() {
   const { data: artisans, loading: artisansLoading, error: artisansError } = useArtisans();
   const { data: inventory, loading: inventoryLoading, error: inventoryError } = useInventory();
   const { createJob, loading: createJobLoading, error: createJobError } = useCreateJob();
+  const { data: productMetadata, loading: metadataLoading, refetch: refetchProductMetadata } = useProductMetadata();
 
   const [serviceCategory, setServiceCategory] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
@@ -108,7 +109,8 @@ export default function CreateJobPage() {
   const availableInventory = useMemo(() => {
     if (!inventory) return {};
 
-    const sourceCategories = PRODUCTION_CHAIN_MAP[serviceCategory];
+    const chainMap = productMetadata?.production_chain_map || PRODUCTION_CHAIN_MAP;
+    const sourceCategories = chainMap[serviceCategory];
 
     let filteredInventory: InventoryItem[] = [];
     if (sourceCategories) {
@@ -569,7 +571,19 @@ export default function CreateJobPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="productType" className="text-xs font-bold uppercase text-gray-500 tracking-wider">Product Category *</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="productType" className="text-xs font-bold uppercase text-gray-500 tracking-wider">Product Category *</Label>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 w-6 p-0 text-gray-400 hover:text-blue-500" 
+                      onClick={() => refetchProductMetadata()}
+                      title="Refresh categories"
+                    >
+                      <RefreshCw className={`h-3 w-3 ${metadataLoading ? 'animate-spin' : ''}`} />
+                    </Button>
+                  </div>
                   <Select
                     value={currentItem.productType}
                     onValueChange={(value) => setCurrentItem({ ...currentItem, productType: value })}
@@ -578,7 +592,11 @@ export default function CreateJobPage() {
                       <SelectValue placeholder="Choose product category..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {PRODUCT_TYPES.map((type) => (
+                      {productMetadata?.product_types?.map((type) => (
+                        <SelectItem key={type.value} value={type.value} className="text-sm font-semibold">
+                          {type.label}
+                        </SelectItem>
+                      )) || PRODUCT_TYPES.map((type) => (
                         <SelectItem key={type} value={type} className="text-sm font-semibold">
                           {type.replace(/_/g, " ")}
                         </SelectItem>
@@ -616,7 +634,11 @@ export default function CreateJobPage() {
                       <SelectValue placeholder="Choose size category..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {SIZE_CATEGORIES.map((size) => (
+                      {productMetadata?.size_categories?.map((size) => (
+                        <SelectItem key={size.value} value={size.value} className="text-sm font-semibold">
+                          {size.label}
+                        </SelectItem>
+                      )) || SIZE_CATEGORIES.map((size) => (
                         <SelectItem key={size} value={size} className="text-sm font-semibold">
                           {size.replace(/_/g, " ")}
                         </SelectItem>

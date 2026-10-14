@@ -61,29 +61,7 @@ class JobItemCreateUpdateSerializer(serializers.ModelSerializer):
         quantity_ordered = job_item.quantity_ordered
         current_service_category = job.service_category
 
-        PRODUCTION_CHAIN_MAP = {
-            "CUTTING": [
-                        "DRAWING"
-            ],
-            "GOUGING": [
-                        "CUTTING"
-            ],
-            "SANDING": [
-                        "CUTTING",
-                        "CARVING"
-            ],
-            "PAINTING": [
-                        "SANDING"
-            ],
-            "FINISHING": [
-                        "PAINTING"
-            ],
-            "FINISHED": [
-                        "FINISHING"
-            ]
-        }
-
-        previous_categories_to_check = PRODUCTION_CHAIN_MAP.get(current_service_category)
+        previous_categories_to_check = current_service_category.previous_categories.all()
 
         if previous_categories_to_check:
             inventory_item_to_reserve = None

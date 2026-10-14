@@ -18,6 +18,7 @@ class ServiceCategoryAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'display_name')
     search_fields = ('name', 'display_name')
     ordering = ('name',)
+    filter_horizontal = ('previous_categories',)
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):

@@ -11,6 +11,7 @@ class ProductType(models.Model):
 class ServiceCategory(models.Model):
     name = models.CharField(max_length=50, unique=True)
     display_name = models.CharField(max_length=50)
+    previous_categories = models.ManyToManyField('self', symmetrical=False, blank=True, help_text="Stages that feed into this stage.")
 
     def __str__(self):
         return self.display_name

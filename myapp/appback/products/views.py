@@ -233,7 +233,11 @@ class ProductViewSet(viewsets.ModelViewSet):
             'size_categories': [
                 {'value': sc.name, 'label': sc.display_name, 'id': sc.id}
                 for sc in SizeCategory.objects.all().order_by('display_name')
-            ]
+            ],
+            'production_chain_map': {
+                sc.name: [prev.name for prev in sc.previous_categories.all()]
+                for sc in ServiceCategory.objects.prefetch_related('previous_categories').all()
+            }
         }
         return Response(data)
 
