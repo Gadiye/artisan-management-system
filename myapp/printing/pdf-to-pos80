@@ -1,0 +1,77 @@
+#!/bin/sh
+# CUPS filter: application/pdf -> plain ASCII text for the POS-80 queue.
+#
+# CUPS invokes filters as:
+#   pdf-to-pos80 job-id user title copies options [file]
+#
+# The Generic Text-Only PPD cannot accept PDF. This filter extracts the
+# text from the PDF (browser print output) and emits CRLF-terminated ASCII,
+# which is what the printer's text path expects.
+
+set -u
+
+PATH=/usr/bin:/bin
+export PATH
+
+JOB_ID="${1:-0}"
+COPIES="${4:-1}"
+INPUT="${6:-}"
+
+log() {
+  echo "DEBUG: pdf-to-pos80[$JOB_ID]: $*" >&2
+}
+
+case "$COPIES" in
+  ''|*[!0-9]*|0) COPIES=1 ;;
+esac
+
+if ! command -v pdftotext >/dev/null 2>&1; then
+  log "pdftotext is not installed (poppler-utils)"
+  exit 1
+fi
+
+TMP_PDF=""
+TMP_TXT=""
+
+cleanup() {
+  [ -n "$TMP_PDF" ] && rm -f "$TMP_PDF"
+  [ -n "$TMP_TXT" ] && rm -f "$TMP_TXT"
+}
+trap cleanup EXIT HUP INT TERM
+
+# CUPS normally passes a spool file; fall back to stdin if it does not.
+if [ -z "$INPUT" ] || [ ! -r "$INPUT" ]; then
+  TMP_PDF="$(mktemp /tmp/pdf-to-pos80-pdf.XXXXXX)" || exit 1
+  cat > "$TMP_PDF" || exit 1
+  INPUT="$TMP_PDF"
+fi
+
+TMP_TXT="$(mktemp /tmp/pdf-to-pos80-txt.XXXXXX)" || exit 1
+
+log "converting PDF to ASCII text, copies=$COPIES"
+
+i=0
+while [ "$i" -lt "$COPIES" ]; do
+  if ! pdftotext -layout -enc UTF-8 "$INPUT" "$TMP_TXT"; then
+    log "pdftotext failed"
+    exit 1
+  fi
+
+  if [ ! -s "$TMP_TXT" ]; then
+    log "PDF contains no extractable text"
+    exit 1
+  fi
+
+  # Replace the two glyphs the app uses, transliterate the rest to ASCII,
+  # drop page form-feeds, then emit CRLF line endings. The printer is a
+  # text-only queue, so no further CUPS filter will do this for us.
+  LC_ALL=C sed -e 's/•/-/g' -e 's/✂/-- CUT --/g' "$TMP_TXT" \
+    | iconv -c -f UTF-8 -t ASCII//TRANSLIT \
+    | tr -d '\r\f' \
+    | sed 's/$/\r/' || exit 1
+  printf '\r\n\r\n\r\n\r\n'
+
+  i=$((i + 1))
+done
+
+exit 0

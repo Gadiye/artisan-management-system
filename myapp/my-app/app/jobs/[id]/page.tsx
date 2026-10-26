@@ -10,6 +10,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useJob } from '@/hooks/useResource';
 import React, { use } from 'react';
 import { RecordDeliveryDialog } from "@/components/record-delivery-dialog";
+import { JobTicket, getItemPricing } from "@/components/job-ticket";
 
 function getStatusIcon(status: string) {
   switch (status) {
@@ -108,9 +109,14 @@ export default function JobDetailsPage({ params }: PageProps) {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Job Details: #{job.job_id}</h1>
-        <p className="text-muted-foreground mt-2">Overview and progress of this production job</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-bold">Job Details: #{job.job_id}</h1>
+          <p className="text-muted-foreground mt-2">Overview and progress of this production job</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <JobTicket job={job} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -171,42 +177,47 @@ export default function JobDetailsPage({ params }: PageProps) {
                 <TableHead>Received</TableHead>
                 <TableHead>Accepted</TableHead>
                 <TableHead>Remaining</TableHead>
-                <TableHead>Unit Price</TableHead>
-                <TableHead>Total Payment</TableHead>
+                <TableHead>Unit Rate</TableHead>
+                <TableHead>Estimated Pay</TableHead>
+                <TableHead>Final Payment</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {job.items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {typeof item.artisan === 'object'
-                        ? item.artisan?.name || 'Unknown'
-                        : item.artisan || 'Unknown'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {item.product && typeof item.product === 'object' ? (
-                      <div className="text-sm">
-                        <div className="font-medium">{item.product.product_type}</div>
-                        <div className="text-xs text-muted-foreground">{item.product.animal_type}</div>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">Product {item.product}</span>
-                    )}
-                  </TableCell>
-                  <TableCell>{item.quantity_ordered}</TableCell>
-                  <TableCell>{item.quantity_received}</TableCell>
-                  <TableCell>{item.quantity_accepted}</TableCell>
-                  <TableCell>{item.quantity_ordered - item.quantity_received}</TableCell>
-                  <TableCell>Ksh {Number(item.original_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                  <TableCell>Ksh {Number(item.final_payment).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                  <TableCell>
-                    <RecordDeliveryDialog jobItem={item} refetchJob={refetch} disabled={item.quantity_ordered <= item.quantity_received} />
-                  </TableCell>
-                </TableRow>
-              ))}
+              {job.items.map((item) => {
+                const pricing = getItemPricing(item);
+                return (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {typeof item.artisan === 'object'
+                          ? item.artisan?.name || 'Unknown'
+                          : item.artisan || 'Unknown'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {item.product && typeof item.product === 'object' ? (
+                        <div className="text-sm">
+                          <div className="font-medium">{item.product.product_type}</div>
+                          <div className="text-xs text-muted-foreground">{item.product.animal_type}</div>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">Product {item.product}</span>
+                      )}
+                    </TableCell>
+                    <TableCell>{item.quantity_ordered}</TableCell>
+                    <TableCell>{item.quantity_received}</TableCell>
+                    <TableCell>{item.quantity_accepted}</TableCell>
+                    <TableCell>{item.quantity_ordered - item.quantity_received}</TableCell>
+                    <TableCell>Ksh {pricing.unitRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                    <TableCell>Ksh {pricing.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                    <TableCell>Ksh {pricing.finalPayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                    <TableCell>
+                      <RecordDeliveryDialog jobItem={item} refetchJob={refetch} disabled={item.quantity_ordered <= item.quantity_received} />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>

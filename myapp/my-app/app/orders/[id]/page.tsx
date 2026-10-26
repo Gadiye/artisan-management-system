@@ -35,6 +35,10 @@ interface OrderDetailPageProps {
   }>
 }
 
+function formatLabel(value: unknown, fallback = ""): string {
+  return String(value ?? fallback).replace(/_/g, " ")
+}
+
 function getStatusIcon(status: string) {
   switch (status) {
     case "PENDING":
@@ -256,10 +260,10 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                       <TableRow key={item.id} className="hover:bg-gray-50/30 transition-colors">
                         <TableCell className="pl-6 py-4">
                           <div className="font-bold text-gray-900 text-sm">
-                            {(item.product?.product_type || "Product").replace(/_/g, " ")}
+                            {formatLabel(item.product?.product_type, "Product")}
                           </div>
                           <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight mt-0.5">
-                            {item.product?.animal_type} • {(item.product?.size_category || "").replace(/_/g, " ")}
+                            {item.product?.animal_type} • {formatLabel(item.product?.size_category)}
                           </div>
                         </TableCell>
                         <TableCell className="text-right font-extrabold text-sm text-gray-900 py-4">

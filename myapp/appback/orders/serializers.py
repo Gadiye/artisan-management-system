@@ -11,11 +11,20 @@ class CustomerSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'email'] # Adjust fields based on your Customer model
 
 class ProductLiteSerializer(serializers.ModelSerializer):
-    # This serializer provides a lightweight summary of the product
-    # Adjust fields based on your Product model structure
+    # This serializer provides a lightweight summary of the product.
+    # product_type/size_category are ForeignKeys, so expose their names as
+    # strings instead of raw primary keys (the frontend formats them with .replace).
+    product_type = serializers.CharField(source='product_type.name', read_only=True, allow_null=True)
+    product_type_display = serializers.CharField(source='product_type.display_name', read_only=True, allow_null=True)
+    size_category = serializers.CharField(source='size_category.name', read_only=True, allow_null=True)
+    size_category_display = serializers.CharField(source='size_category.display_name', read_only=True, allow_null=True)
+
     class Meta:
         model = Product
-        fields = ['id', 'product_type', 'animal_type'] # Example fields
+        fields = [
+            'id', 'product_type', 'product_type_display', 'animal_type',
+            'size_category', 'size_category_display',
+        ]
 
 class OrderItemSerializer(serializers.ModelSerializer):
     product = ProductLiteSerializer(read_only=True) # Nested read-only for detail view

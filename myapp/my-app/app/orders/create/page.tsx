@@ -53,7 +53,7 @@ const RECENT_ORDER_ITEMS_KEY = "recent-order-items-cache";
 
 // Premium category badge colors
 const getProductBadgeColor = (type: string) => {
-  switch (type.toUpperCase()) {
+  switch (String(type ?? "").toUpperCase()) {
     case "SITTING_ANIMAL":
     case "SITTING ANIMAL":
       return "bg-blue-50 text-blue-700 border-blue-200"
@@ -64,6 +64,28 @@ const getProductBadgeColor = (type: string) => {
       return "bg-purple-50 text-purple-700 border-purple-200"
   }
 };
+
+// Product fields can be null (and product_type/size_category are relations on the
+// backend), so never call string methods on them directly.
+const formatLabel = (value: unknown, fallback = ""): string => {
+  if (value === null || value === undefined || value === "") return fallback
+  return String(value).replace(/_/g, " ")
+}
+
+const getProductLabel = (product: {
+  product_type?: unknown
+  animal_type?: unknown
+  size_category?: unknown
+}) => {
+  const base = `${formatLabel(product.product_type, "Product")} - ${formatLabel(product.animal_type, "Unknown")}`
+  const size = formatLabel(product.size_category)
+  return size ? `${base} (${size})` : base
+}
+
+const getProductSearchText = (product: Product) =>
+  [product.product_type, product.animal_type, product.size_category, product.unit_of_measure]
+    .map((value) => String(value ?? "").toLowerCase())
+    .join(" ")
 
 export default function CreateOrderPage() {
   const router = useRouter()
@@ -85,8 +107,17 @@ export default function CreateOrderPage() {
   const [formSuccess, setFormSuccess] = useState<string | null>(null)
 
   useEffect(() => {
-    const cached = localStorage.getItem(RECENT_ORDER_ITEMS_KEY);
-    if (cached) setRecentItems(JSON.parse(cached));
+    try {
+      const cached = localStorage.getItem(RECENT_ORDER_ITEMS_KEY);
+      if (!cached) return;
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed)) {
+        setRecentItems(parsed.filter((item) => item && typeof item.productId === "number"));
+      }
+    } catch {
+      // Corrupt/legacy cache should never break the page
+      localStorage.removeItem(RECENT_ORDER_ITEMS_KEY);
+    }
   }, []);
 
   const safeCustomers = customers || [];
@@ -101,21 +132,15 @@ export default function CreateOrderPage() {
   });
 
   const filteredProducts = useMemo(() => {
-    if (!productSearch) return [];
-    // If the input exactly matches an item we already selected, don't show list
-    if (currentItem.productId) {
-      const selected = safeProducts.find((p: Product) => p.id.toString() === currentItem.productId);
-      if (selected && productSearch === `${selected.product_type.replace(/_/g, " ")} - ${selected.animal_type} (${selected.size_category})`) {
-        return [];
-      }
-    }
-    const search = productSearch.toLowerCase();
-    return safeProducts.filter((p: Product) =>
-      p.product_type.toLowerCase().includes(search) ||
-      p.animal_type.toLowerCase().includes(search) ||
-      p.size_category.toLowerCase().includes(search)
-    ).slice(0, 5); // Limit suggestions for clean presentation
-  }, [safeProducts, productSearch, currentItem.productId]);
+    const tokens = productSearch.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return [];
+    return safeProducts
+      .filter((p: Product) => {
+        const haystack = getProductSearchText(p);
+        return tokens.every((token) => haystack.includes(token));
+      })
+      .slice(0, 5); // Limit suggestions for clean presentation
+  }, [safeProducts, productSearch]);
 
   const addOrderItem = () => {
     if (currentItem.productId) {
@@ -210,6 +235,9 @@ export default function CreateOrderPage() {
     : null
 
   const currentStock = selectedProduct ? (stockMap.get(selectedProduct.id) || 0) : 0;
+
+  const trimmedSearch = productSearch.trim()
+  const showSuggestions = trimmedSearch.length > 0 && !currentItem.productId
 
   if (customersLoading || productsLoading) {
     return (
@@ -308,11 +336,11 @@ export default function CreateOrderPage() {
                       const p = safeProducts.find((prod: Product) => prod.id === item.productId);
                       if (p) {
                         setCurrentItem({ ...currentItem, productId: p.id.toString() });
-                        setProductSearch(`${p.product_type.replace(/_/g, " ")} - ${p.animal_type} (${p.size_category})`);
+                        setProductSearch(getProductLabel(p));
                       }
                     }}
                   >
-                    {item.productType.replace(/_/g, " ")} • {item.animalType}
+                    {formatLabel(item.productType, "Unknown product")} • {formatLabel(item.animalType, "—")}
                   </Button>
                 ))}
               </CardContent>
@@ -320,7 +348,7 @@ export default function CreateOrderPage() {
           )}
 
           {/* Catalog search and addition */}
-          <Card className="border-gray-200 shadow-sm overflow-hidden">
+          <Card className="border-gray-200 shadow-sm">
             <CardHeader className="bg-gray-50/50 border-b pb-4">
               <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <Search className="h-5 w-5 text-blue-600" />
@@ -340,16 +368,30 @@ export default function CreateOrderPage() {
                       value={productSearch}
                       onChange={(e) => {
                         setProductSearch(e.target.value);
-                        if (!e.target.value) setCurrentItem({ ...currentItem, productId: "" });
+                        // Editing the query invalidates a previous selection, otherwise
+                        // suggestions stay hidden and "Add" would add the old product.
+                        if (currentItem.productId) {
+                          setCurrentItem((prev) => ({ ...prev, productId: "" }));
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") {
+                          setProductSearch("");
+                          setCurrentItem((prev) => ({ ...prev, productId: "" }));
+                        }
                       }}
                       className="pl-10 h-11 border-gray-300 font-medium text-sm"
                     />
                   </div>
 
                   {/* Suggestion list overlay */}
-                  {productSearch && !currentItem.productId && filteredProducts.length > 0 && (
+                  {showSuggestions && (
                     <div className="absolute z-50 w-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto divide-y">
-                      {filteredProducts.map((p: Product) => {
+                      {filteredProducts.length === 0 ? (
+                        <div className="p-4 text-sm font-medium text-muted-foreground">
+                          No products match &ldquo;{trimmedSearch}&rdquo;.
+                        </div>
+                      ) : filteredProducts.map((p: Product) => {
                         const inStock = stockMap.get(p.id) || 0;
                         return (
                           <div
@@ -357,12 +399,12 @@ export default function CreateOrderPage() {
                             className="flex items-center justify-between p-3.5 hover:bg-slate-50 cursor-pointer transition-colors"
                             onClick={() => {
                               setCurrentItem({ ...currentItem, productId: p.id.toString() });
-                              setProductSearch(`${p.product_type.replace(/_/g, " ")} - ${p.animal_type} (${p.size_category})`);
+                              setProductSearch(getProductLabel(p));
                             }}
                           >
                             <div>
-                              <p className="text-sm font-extrabold text-gray-900">{p.product_type.replace(/_/g, " ")}</p>
-                              <p className="text-xs text-muted-foreground font-semibold mt-0.5">{p.animal_type} • {p.size_category}</p>
+                              <p className="text-sm font-extrabold text-gray-900">{formatLabel(p.product_type, "Product")}</p>
+                              <p className="text-xs text-muted-foreground font-semibold mt-0.5">{formatLabel(p.animal_type, "Unknown")} • {formatLabel(p.size_category, "N/A")}</p>
                             </div>
                             <div className="text-right">
                               <p className="text-sm font-extrabold text-gray-900">Ksh {Number(p.base_price || 0).toLocaleString()}</p>
@@ -447,11 +489,11 @@ export default function CreateOrderPage() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2 mb-0.5">
-                            <span className="font-extrabold text-gray-900 text-sm">{item.productType.replace(/_/g, " ")}</span>
-                            <Badge variant="outline" className="text-[9px] font-bold uppercase h-4.5">{item.sizeCategory}</Badge>
+                            <span className="font-extrabold text-gray-900 text-sm">{formatLabel(item.productType, "Product")}</span>
+                            <Badge variant="outline" className="text-[9px] font-bold uppercase h-4.5">{formatLabel(item.sizeCategory, "N/A")}</Badge>
                           </div>
                           <p className="text-xs text-muted-foreground font-semibold">
-                            {item.animalType} • Ksh {Number(item.unitPrice || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} / unit
+                            {formatLabel(item.animalType, "Unknown")} • Ksh {Number(item.unitPrice || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} / unit
                           </p>
                         </div>
                       </div>
