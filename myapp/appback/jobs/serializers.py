@@ -2,7 +2,7 @@ from django.db import transaction
 from rest_framework import serializers
 from .models import Job, JobItem, JobDelivery, ServiceRate, JobTransaction
 from artisans.models import Artisan
-from products.models import Product
+from products.models import Product, ServiceCategory
 from inventory.models import Inventory, InventoryReservation
 
 # --- Lite Serializers for Nested Data ---
@@ -263,13 +263,32 @@ class JobCreateUpdateSerializer(serializers.ModelSerializer):
 
 class ServiceRateSerializer(serializers.ModelSerializer):
     product = ProductJobItemLiteSerializer(read_only=True)
+    product_id = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.all(), source='product', write_only=True
+    )
     service_category = serializers.CharField(source='service_category.name', read_only=True)
     service_category_display = serializers.CharField(source='service_category.display_name', read_only=True)
+    service_category_name = serializers.SlugRelatedField(
+        queryset=ServiceCategory.objects.all(), slug_field='name', source='service_category', write_only=True
+    )
     rate_per_unit = serializers.FloatField()
 
     class Meta:
         model = ServiceRate
-        fields = ['id', 'product', 'service_category', 'service_category_display', 'rate_per_unit']
+        fields = [
+            'id', 'product', 'product_id', 'service_category',
+            'service_category_display', 'service_category_name', 'rate_per_unit',
+        ]
+
+    def to_internal_value(self, data):
+        # Keep the response shape unchanged while still accepting the
+        # client's existing write payload (`product`, `service_category`).
+        data = data.copy()
+        if 'product' in data:
+            data['product_id'] = data.pop('product')
+        if 'service_category' in data:
+            data['service_category_name'] = data.pop('service_category')
+        return super().to_internal_value(data)
 
 
 class RateDetailSerializer(serializers.Serializer):

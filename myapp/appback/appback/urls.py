@@ -47,10 +47,14 @@ urlpatterns = [
     path('api/inventory/', include('inventory.urls')),
     path('api/orders/', include('orders.urls')),
     path('api/financials/', include('financials.urls')),
-    path('api/', include('financials.urls')),
     path('api/login/', json_login, name='json_login'),
-    
+
+    # Jobs' standalone router must come before financials' duplicate `api/`
+    # include so that `/api/service-rates/hierarchical/` is handled by the
+    # jobs ServiceRateViewSet instead of being captured as a detail lookup by
+    # the financials router.
     path('api/', include(standalone_router.urls)),
+    path('api/', include('financials.urls')),
 ]
 
 # Serve media files during development
