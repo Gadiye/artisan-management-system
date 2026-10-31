@@ -1,5 +1,5 @@
 // lib/api/client.ts
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const RAW_API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
 function getCsrfToken(): string | null {
   if (typeof document !== "undefined") {
@@ -15,7 +15,11 @@ function getCsrfToken(): string | null {
 }
 
 export async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`
+  const baseUrl = (RAW_API_BASE_URL || "").replace(/\/+$/, "")
+  const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`
+  // If baseUrl does not end in /api and endpoint does not start with /api, include /api
+  const apiPrefix = baseUrl.endsWith("/api") || normalizedEndpoint.startsWith("/api/") ? "" : "/api"
+  const url = `${baseUrl}${apiPrefix}${normalizedEndpoint}`
 
   const config: RequestInit = {
     headers: {
