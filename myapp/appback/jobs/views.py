@@ -127,7 +127,7 @@ class JobViewSet(viewsets.ModelViewSet):
         Returns aggregated product and artisan workload data for the UI.
         """
         products = Product.objects.filter(is_active=True).values(
-            'id', 'product_type', 'animal_type', 'size_category'
+            'id', 'product_type__name', 'animal_type', 'size_category__name'
         )
         
         # 1. Bulk demand (Order Items)
@@ -145,22 +145,22 @@ class JobViewSet(viewsets.ModelViewSet):
         # 3. Bulk inventory (Inventory)
         inv_qs = Inventory.objects.filter(
             is_active=True, quantity__gt=0
-        ).values('product_id', 'service_category').annotate(total=Sum('quantity'))
+        ).values('product_id', 'service_category__name').annotate(total=Sum('quantity'))
         inv_map = defaultdict(dict)
         for inv in inv_qs:
-            inv_map[inv['product_id']][inv['service_category']] = inv['total']
+            inv_map[inv['product_id']][inv['service_category__name']] = inv['total']
 
         # 4. Bulk Work In Progress (Job Items)
         wip_qs = JobItem.objects.filter(
             job___status='IN_PROGRESS', 
             quantity_received__lt=F('quantity_ordered')
-        ).values('product_id', 'job__service_category').annotate(
+        ).values('product_id', 'job__service_category__name').annotate(
             ordered=Sum('quantity_ordered'), 
             received=Sum('quantity_received')
         )
         wip_map = defaultdict(lambda: defaultdict(int))
         for wip in wip_qs:
-            wip_map[wip['product_id']][wip['job__service_category']] += (wip['ordered'] - wip['received'])
+            wip_map[wip['product_id']][wip['job__service_category__name']] += (wip['ordered'] - wip['received'])
 
         product_data = []
 
@@ -173,9 +173,9 @@ class JobViewSet(viewsets.ModelViewSet):
 
             product_data.append({
                 'id': pid,
-                'product_type': p['product_type'],
+                'product_type': p['product_type__name'],
                 'animal_type': p['animal_type'],
-                'size_category': p['size_category'],
+                'size_category': p['size_category__name'],
                 'stock': stock,
                 'total_ordered': demand,
                 'inventory': p_inv,
@@ -186,7 +186,7 @@ class JobViewSet(viewsets.ModelViewSet):
         artisan_qs = JobItem.objects.filter(
             job___status='IN_PROGRESS',
             quantity_received__lt=F('quantity_ordered')
-        ).select_related('artisan', 'product', 'job')
+        ).select_related('artisan', 'product', 'job__service_category')
 
         workload_map = defaultdict(lambda: {'name': '', 'total_units': 0, 'items': []})
         for item in artisan_qs:
@@ -203,7 +203,7 @@ class JobViewSet(viewsets.ModelViewSet):
             # Check if this artist already has an entry for this product + category
             existing_item = next(
                 (i for i in workload_map[art_id]['items'] 
-                 if i['product_id'] == item.product.id and i['category'] == item.job.service_category),
+                 if i['product_id'] == item.product.id and i['category'] == item.job.service_category.name),
                 None
             )
 
@@ -212,7 +212,7 @@ class JobViewSet(viewsets.ModelViewSet):
             else:
                 workload_map[art_id]['items'].append({
                     'product_id': item.product.id,
-                    'category': item.job.service_category,
+                    'category': item.job.service_category.name,
                     'quantity': pending_qty
                 })
 
