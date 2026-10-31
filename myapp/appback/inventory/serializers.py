@@ -1,6 +1,8 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 from django.utils import timezone
-from .models import Inventory, FinishedStock, InventoryReservation
+from .models import Inventory, FinishedStock, FinishedStockMovement, InventoryReservation
 from products.models import Product
 from products.serializers import ProductSerializer
 from jobs.models import JobDelivery
@@ -25,7 +27,10 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ['id', 'product_type', 'product_type_display', 'animal_type', 'size_category', 'size_category_display', 'unit_of_measure']
+        fields = [
+            'id', 'product_type', 'product_type_display', 'animal_type',
+            'size_category', 'size_category_display', 'unit_of_measure', 'base_price',
+        ]
         read_only_fields = ['id']
 
 
@@ -158,11 +163,72 @@ class FinishedStockSerializer(serializers.ModelSerializer):
     Serializer for FinishedStock model.
     """
     product = ProductSerializer(read_only=True)
+    days_in_stock = serializers.SerializerMethodField()
 
     class Meta:
         model = FinishedStock
-        fields = ['id', 'product', 'quantity', 'average_cost', 'last_updated']
-        read_only_fields = ['id', 'last_updated']
+        fields = [
+            'id', 'product', 'quantity', 'average_cost', 'reorder_level',
+            'max_level', 'last_updated', 'days_in_stock',
+        ]
+        read_only_fields = ['id', 'last_updated', 'days_in_stock']
+
+    def get_days_in_stock(self, obj):
+        if not obj.last_updated:
+            return 0
+        return max((timezone.now() - obj.last_updated).days, 0)
+
+
+class FinishedStockMovementSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the finished-stock movement audit trail.
+    """
+    product = ProductSerializer(read_only=True)
+    movement_type_display = serializers.CharField(
+        source='get_movement_type_display', read_only=True
+    )
+
+    class Meta:
+        model = FinishedStockMovement
+        fields = [
+            'id', 'product', 'movement_type', 'movement_type_display',
+            'quantity', 'balance_after', 'average_cost', 'reference',
+            'note', 'created_at',
+        ]
+        read_only_fields = [
+            'id', 'product', 'movement_type', 'movement_type_display',
+            'quantity', 'balance_after', 'average_cost', 'reference',
+            'note', 'created_at',
+        ]
+
+
+class FinishedStockAddItemSerializer(serializers.Serializer):
+    """
+    One product line for a manual finished-stock receipt.
+    """
+    product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
+    quantity = serializers.IntegerField(min_value=1)
+    average_cost = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal('0'),
+        required=False,
+        allow_null=True,
+    )
+    note = serializers.CharField(required=False, allow_blank=True, max_length=255)
+
+
+class FinishedStockAddSerializer(serializers.Serializer):
+    """
+    Payload for receiving one or more finished-stock lines at once.
+    """
+    items = FinishedStockAddItemSerializer(many=True)
+    reference = serializers.CharField(required=False, allow_blank=True, max_length=150)
+
+    def validate_items(self, value):
+        if not value:
+            raise serializers.ValidationError("Add at least one stock line.")
+        return value
 
 
 class InventoryStockUpdateSerializer(serializers.Serializer):

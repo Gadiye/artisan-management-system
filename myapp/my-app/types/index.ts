@@ -143,7 +143,35 @@ export interface FinishedStock {
   product: number | Product
   quantity: number
   average_cost: number
+  reorder_level?: number
+  max_level?: number
   last_updated: string
+  days_in_stock?: number
+}
+
+export interface FinishedStockMovement {
+  id: number
+  product: Product
+  movement_type: "IN" | "OUT"
+  movement_type_display: string
+  quantity: number
+  balance_after: number
+  average_cost: number
+  reference: string
+  note: string
+  created_at: string
+}
+
+export interface AddFinishedStockItem {
+  product: number
+  quantity: number
+  average_cost?: number | null
+  note?: string
+}
+
+export interface AddFinishedStockPayload {
+  reference?: string
+  items: AddFinishedStockItem[]
 }
 
 export interface PriceHistory {

@@ -4,11 +4,12 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db import transaction
 from django.db.models import Sum, Avg, Count
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 
-from .models import Inventory, FinishedStock
+from .models import Inventory, FinishedStock, FinishedStockMovement
 from jobs.models import JobDelivery
 from orders.models import OrderItem
 from .serializers import (
@@ -18,6 +19,8 @@ from .serializers import (
     InventoryUpdateSerializer,
     JobDeliverySerializer,
     FinishedStockSerializer,
+    FinishedStockMovementSerializer,
+    FinishedStockAddSerializer,
 )
 from orders.serializers import OrderItemSerializer
 from .filters import InventoryFilter
@@ -32,19 +35,11 @@ class FinishedStockViewSet(viewsets.ModelViewSet):
     queryset = FinishedStock.objects.select_related('product__product_type', 'product__size_category').all()
     serializer_class = FinishedStockSerializer
     permission_classes = [AllowAny]
-
-    def list(self, request, *args, **kwargs):
-        print("DEBUG: FinishedStockViewSet list method hit!")
-        return super().list(request, *args, **kwargs)
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['product__product_type', 'product__animal_type']
     search_fields = ['product__product_type', 'product__animal_type']
     ordering_fields = ['quantity', 'average_cost', 'last_updated']
     pagination_class = StandardResultsSetPagination
-
-    def list(self, request, *args, **kwargs):
-        print("FinishedStockViewSet list method called!")
-        return super().list(request, *args, **kwargs)
 
     def perform_create(self, serializer):
         # Ensure only one FinishedStock entry per product
@@ -67,6 +62,67 @@ class FinishedStockViewSet(viewsets.ModelViewSet):
             )
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['post'], url_path='add-stock')
+    def add_stock(self, request):
+        """
+        Receive one or more finished-stock lines at once.
+
+        POST /api/inventory/finished-stock/add-stock/
+        {
+            "reference": "Manual stock entry",
+            "items": [
+                {"product": 12, "quantity": 4, "average_cost": "350.00", "note": "..."}
+            ]
+        }
+        """
+        from .services import add_finished_stock
+
+        serializer = FinishedStockAddSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        reference = serializer.validated_data.get('reference') or 'Manual stock entry'
+        created_or_updated = []
+
+        with transaction.atomic():
+            for item in serializer.validated_data['items']:
+                created_or_updated.append(
+                    add_finished_stock(
+                        product=item['product'],
+                        quantity=item['quantity'],
+                        average_cost=item.get('average_cost'),
+                        reference=reference,
+                        note=item.get('note', ''),
+                    )
+                )
+
+        response_serializer = FinishedStockSerializer(created_or_updated, many=True)
+        return Response(
+            {
+                'message': f"Received {len(created_or_updated)} finished-stock line(s).",
+                'results': response_serializer.data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=['get'])
+    def movements(self, request, pk=None):
+        """
+        GET /api/inventory/finished-stock/{id}/movements/
+        In/out movement history for the product attached to this stock record.
+        """
+        finished_stock = self.get_object()
+        queryset = FinishedStockMovement.objects.filter(
+            product=finished_stock.product
+        ).select_related('product').order_by('-created_at')
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = FinishedStockMovementSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = FinishedStockMovementSerializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 

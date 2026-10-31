@@ -128,6 +128,8 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                                 f"Requested: {quantity}."
                             )
                         finished_stock.quantity -= quantity
+                        finished_stock._movement_reference = f"Order #{order.order_id}"
+                        finished_stock._movement_note = "Stock released when the order was created."
                         finished_stock.save()
                     except FinishedStock.DoesNotExist:
                         raise serializers.ValidationError(f"Stock information not found for product: {str(product)}")
@@ -170,6 +172,8 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
                                     f"{finished_stock.quantity} available, {item.quantity} needed."
                                 )
                             finished_stock.quantity -= item.quantity
+                            finished_stock._movement_reference = f"Order #{instance.order_id}"
+                            finished_stock._movement_note = f"Stock released on status change ({original_status} -> {new_status})."
                             finished_stock.save()
                         except FinishedStock.DoesNotExist:
                             raise serializers.ValidationError(f"Stock information not found for product: {str(item.product)}")
@@ -180,6 +184,8 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
                         try:
                             finished_stock = FinishedStock.objects.get(product=item.product)
                             finished_stock.quantity += item.quantity # Restore stock
+                            finished_stock._movement_reference = f"Order #{instance.order_id}"
+                            finished_stock._movement_note = "Stock restored because the order was cancelled."
                             finished_stock.save()
                         except FinishedStock.DoesNotExist:
                             # Log this, but don't block cancel if stock model somehow disappeared
@@ -216,6 +222,8 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
                                         f"Available: {finished_stock.quantity}, Need: {quantity_change}."
                                     )
                                 finished_stock.quantity -= quantity_change
+                                finished_stock._movement_reference = f"Order #{instance.order_id}"
+                                finished_stock._movement_note = "Stock adjusted after an order line quantity change."
                                 finished_stock.save()
 
                             order_item.quantity = new_quantity
@@ -236,6 +244,8 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
                                         f"Requested: {quantity}."
                                     )
                                 finished_stock.quantity -= quantity
+                                finished_stock._movement_reference = f"Order #{instance.order_id}"
+                                finished_stock._movement_note = "Stock released for a new order line."
                                 finished_stock.save()
                             except FinishedStock.DoesNotExist:
                                 raise serializers.ValidationError(f"Stock information not found for product: {str(product)}")
@@ -250,6 +260,8 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
                         try:
                             finished_stock = FinishedStock.objects.get(product=item_to_remove.product)
                             finished_stock.quantity += item_to_remove.quantity # Restore stock
+                            finished_stock._movement_reference = f"Order #{instance.order_id}"
+                            finished_stock._movement_note = "Stock restored after an order line was removed."
                             finished_stock.save()
                         except FinishedStock.DoesNotExist:
                             print(f"Warning: Stock not found for {str(item_to_remove.product)} when removing item from Order {instance.order_id}")

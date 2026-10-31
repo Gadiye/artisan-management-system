@@ -373,8 +373,6 @@ export default function CreateJobPage() {
           animalType: "",
           sizeCategory: "",
           quantity: "",
-          singles: "",
-          pairs: "",
         });
         sessionStorage.removeItem(CACHE_KEY);
       }

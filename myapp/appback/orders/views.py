@@ -116,6 +116,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                                 status=status.HTTP_400_BAD_REQUEST
                             )
                         finished_stock.quantity -= item.quantity
+                        finished_stock._movement_reference = f"Order #{order.order_id}"
+                        finished_stock._movement_note = f"Stock released for order status change ({original_status} -> {new_status})."
                         finished_stock.save()
                     except FinishedStock.DoesNotExist:
                         transaction.set_rollback(True) # Force rollback
@@ -130,6 +132,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                     try:
                         finished_stock = FinishedStock.objects.get(product=item.product)
                         finished_stock.quantity += item.quantity # Restore stock
+                        finished_stock._movement_reference = f"Order #{order.order_id}"
+                        finished_stock._movement_note = "Stock restored because the order was cancelled."
                         finished_stock.save()
                     except FinishedStock.DoesNotExist:
                         # Log this, but don't block if stock model somehow disappeared after initial deduction

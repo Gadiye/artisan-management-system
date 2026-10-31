@@ -190,6 +190,8 @@ def record_job_delivery(job_item, quantity_received, quantity_accepted, rejectio
                     / Decimal(str(new_total_quantity))
                 )
             finished_stock.quantity = new_total_quantity
+            finished_stock._movement_reference = f"Production delivery (Job #{job_item.job_id})"
+            finished_stock._movement_note = f"Accepted {quantity_accepted} finished piece(s)."
             finished_stock.save()
         else:
             inventory, _ = Inventory.objects.get_or_create(

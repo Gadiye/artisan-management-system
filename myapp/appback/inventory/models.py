@@ -43,6 +43,14 @@ class FinishedStock(models.Model):
         decimal_places=2, 
         validators=[MinValueValidator(0)]
     )
+    reorder_level = models.PositiveIntegerField(
+        default=5,
+        help_text="Alert when quantity is at or below this level."
+    )
+    max_level = models.PositiveIntegerField(
+        default=0,
+        help_text="Alert when quantity is above this level. Use 0 to disable overstock alerts."
+    )
     last_updated = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)  # For soft deletion
     last_audit_date = models.DateTimeField(null=True, blank=True)
@@ -58,6 +66,44 @@ class FinishedStock(models.Model):
             models.Index(fields=['product']),
             models.Index(fields=['is_active']),
         ]
+
+class FinishedStockMovement(models.Model):
+    """
+    Audit trail of finished-stock changes. A movement is created whenever the
+    quantity on a FinishedStock record increases or decreases.
+    """
+
+    class MovementType(models.TextChoices):
+        IN = 'IN', 'Stock in'
+        OUT = 'OUT', 'Stock out'
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name='finished_stock_movements'
+    )
+    movement_type = models.CharField(max_length=3, choices=MovementType.choices)
+    quantity = models.PositiveIntegerField(help_text="Absolute quantity moved.")
+    balance_after = models.PositiveIntegerField(help_text="Finished stock balance after the movement.")
+    average_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        default=0
+    )
+    reference = models.CharField(max_length=150, blank=True)
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.movement_type} {self.quantity} - {self.product}"
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['product', 'created_at'], name='inv_fin_move_prod_created'),
+        ]
+
 
 # Custom manager for soft deletion support
 class ActiveInventoryManager(models.Manager):

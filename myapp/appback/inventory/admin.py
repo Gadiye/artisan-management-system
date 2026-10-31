@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django import forms
-from .models import Inventory, FinishedStock
+from .models import Inventory, FinishedStock, FinishedStockMovement
 from products.models import Product
 
 class FinishedStockAdminForm(forms.ModelForm):
@@ -51,7 +51,7 @@ class FinishedStockAdminForm(forms.ModelForm):
 
 class FinishedStockAdmin(admin.ModelAdmin):
     form = FinishedStockAdminForm
-    list_display = ('product', 'display_quantity', 'average_cost', 'last_updated')
+    list_display = ('product', 'display_quantity', 'average_cost', 'reorder_level', 'max_level', 'last_updated')
     list_select_related = ('product__product_type', 'product__size_category')
     search_fields = ('product__product_type__name', 'product__product_type__display_name', 'product__animal_type')
     list_filter = ('product__product_type', 'product__animal_type')
@@ -71,6 +71,10 @@ class FinishedStockAdmin(admin.ModelAdmin):
             ('Quantity', {
                 'fields': ('quantity', 'pairs', 'singles'),
                 'description': "For PAIRS products, enter quantity in pairs and singles. For ITEMS products, enter total items in Quantity field."
+            }),
+            ('Stock Levels', {
+                'fields': ('reorder_level', 'max_level'),
+                'description': "Below-minimum alerts trigger at or below the reorder level. Overstock alerts trigger above the max level; set max level to 0 to disable overstock alerts."
             }),
             ('Audit Info', {'fields': ('last_audit_date',), 'classes': ('collapse',)}),
         )
@@ -165,5 +169,23 @@ class InventoryAdmin(admin.ModelAdmin):
     display_quantity.short_description = "Quantity"
 
 
+class FinishedStockMovementAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'product', 'movement_type', 'quantity', 'balance_after', 'reference')
+    list_select_related = ('product__product_type', 'product__size_category')
+    list_filter = ('movement_type', 'created_at')
+    search_fields = ('product__product_type__name', 'product__animal_type', 'reference', 'note')
+    readonly_fields = (
+        'product', 'movement_type', 'quantity', 'balance_after',
+        'average_cost', 'reference', 'note', 'created_at',
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
 admin.site.register(Inventory, InventoryAdmin)
 admin.site.register(FinishedStock, FinishedStockAdmin)
+admin.site.register(FinishedStockMovement, FinishedStockMovementAdmin)
